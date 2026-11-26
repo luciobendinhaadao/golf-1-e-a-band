@@ -166,7 +166,6 @@ $('createAccount').onclick=async()=>{const name=$('regName').value.trim(),email=
 $('loginAccount').onclick=async()=>{const email=$('loginEmail').value.trim().toLowerCase(),pass=$('loginPass').value;try{const raw=localStorage.getItem('golf1_account_'+email);if(!raw){$('authMessage').textContent='Conta não encontrada neste dispositivo. Cria uma conta primeiro.';return}const profile=JSON.parse(raw);if(profile.passwordHash!==await passDigest(pass)){$('authMessage').textContent='Palavra-passe incorreta.';return}localStorage.setItem('golf1_current_account',email);enterGame(profile)}catch(e){$('authMessage').textContent='Falha ao iniciar sessão. Verifica os dados.'}};
 function restoreSession(){const email=localStorage.getItem('golf1_current_account');if(!email)return;try{const profile=JSON.parse(localStorage.getItem('golf1_account_'+email)||'null');if(profile)enterGame(profile)}catch(e){}}
 restoreSession();setInterval(saveGame,12000);
-init3D();
 
 
 /* GOLF1_THREE_WORLD — camada 3D com fallback 2D */
@@ -272,6 +271,16 @@ function render3D(){
  renderer3D.render(scene3D,camera3D);
 }
 
+
+function bootThree(){
+ if(window.THREE){init3D();return}
+ const fallback=document.createElement('script');
+ fallback.src='https://unpkg.com/three@0.160.0/build/three.min.js';
+ fallback.onload=()=>{if(!threeReady)init3D()};
+ fallback.onerror=()=>{console.error('Motor 3D indisponível: os dois CDNs falharam.');toast('Não foi possível carregar o motor 3D. Verifica a ligação à internet.')};
+ document.head.appendChild(fallback);
+}
+
 function loop(t){const dt=Math.min((t-last)/1000||0,.04);last=t;
 let x=(keys.ArrowRight||keys.d?1:0)-(keys.ArrowLeft||keys.a?1:0)+joy.x,y=(keys.ArrowDown||keys.s?1:0)-(keys.ArrowUp||keys.w?1:0)+joy.y,l=Math.hypot(x,y);if(l>1){x/=l;y/=l}
 if(interior){const speed=running?205:145;moveBlend=Math.min(1,moveBlend+dt*8);if(Math.abs(x)+Math.abs(y)>.05){if(Math.abs(x)>Math.abs(y))avatarFacing=x<0?'left':'right';else avatarFacing=y<0?'up':'down';walkPhase+=dt*(running?15:10)}else{moveBlend=Math.max(0,moveBlend-dt*7)}const nx=player.x+x*speed*dt,ny=player.y+y*speed*dt;player.x=Math.max(45,Math.min(W-45,nx));player.y=Math.max(105,Math.min(H-110,ny))}
@@ -285,6 +294,7 @@ const runBtn=$('run');runBtn.onpointerdown=()=>running=true;['pointerup','pointe
 const j=$('joy'),stick=$('stick');let pointer=null;j.onpointerdown=e=>{pointer=e.pointerId;j.setPointerCapture(pointer);moveJoy(e)};j.onpointermove=e=>{if(e.pointerId===pointer)moveJoy(e)};function moveJoy(e){const r=j.getBoundingClientRect();let dx=e.clientX-r.left-r.width/2,dy=e.clientY-r.top-r.height/2,m=Math.hypot(dx,dy),lim=34;if(m>lim){dx=dx/m*lim;dy=dy/m*lim}joy.x=dx/lim;joy.y=dy/lim;stick.style.transform='translate('+dx+'px,'+dy+'px)'}function endJoy(){pointer=null;joy={x:0,y:0};stick.style.transform=''}['pointerup','pointercancel','lostpointercapture'].forEach(ev=>j.addEventListener(ev,endJoy));
 canvas.addEventListener('dblclick',()=>{if(!driving&&!interior&&Math.hypot(player.x-car.x,player.y-car.y)<95){driving=true;car.x=player.x;car.y=player.y;updateHUD();sound(180,.2);toast('Entraste no Golf 1! Usa o joystick para conduzir.')}});
 updateHUD();
+if(document.readyState==='complete')bootThree();else window.addEventListener('load',bootThree,{once:true});
 })();
 </script>
 </body></html>
