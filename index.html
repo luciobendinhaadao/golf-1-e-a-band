@@ -229,6 +229,31 @@ function init3D(){
   hiace(560,410);hiace(1120,690);hiace(1710,1120);
   const stall=(x,z)=>{const g=new T.Group();streetBox(g,0x6b4329,42,4,27,0,20,0);streetBox(g,0xd2a44e,45,3,30,0,36,0);streetBox(g,0x8a2925,4,30,4,-19,16,-11);streetBox(g,0x8a2925,4,30,4,19,16,-11);for(let k=0;k<4;k++){const bowl=new T.Mesh(new T.SphereGeometry(5,8,6),mat([0xb98235,0xe2c25a,0x9d472b,0x5e8e36][k]));bowl.scale.y=.45;bowl.position.set(-13+k*9,24,0);g.add(bowl)}g.position.set(x,0,z);scene3D.add(g)};
   stall(430,520);stall(1510,470);stall(1870,970);
+  /* Cultura angolana: quitandas, zungueiras, bandeira e arte de rua */
+  const zunga=(x,z,label)=>{
+   const g=new T.Group();
+   streetBox(g,0x70452b,58,5,38,0,19,0);
+   streetBox(g,0xd0a04b,62,4,42,0,39,0);
+   streetBox(g,0x9a3028,5,34,5,-27,18,-16);streetBox(g,0x9a3028,5,34,5,27,18,-16);
+   streetBox(g,0xe6bd62,68,3,48,0,57,-3);
+   streetBox(g,0x8c2f26,68,3,48,0,59,-3);
+   const foods=[0xd6a52f,0xb66d28,0x8eaa3d,0xd9bd6a,0x7d4329];
+   for(let i=0;i<5;i++){const item=new T.Mesh(new T.SphereGeometry(6,9,7),mat(foods[i]));item.scale.set(1,.65,.8);item.position.set(-23+i*11,25,0);g.add(item)}
+   for(let i=0;i<3;i++){const crate=new T.Mesh(new T.BoxGeometry(13,9,13),mat([0x8c4b2d,0x597c3f,0xc38a38][i]));crate.position.set(-18+i*18,7,17);g.add(crate)}
+   const sign=new T.Mesh(new T.PlaneGeometry(58,12),new T.MeshBasicMaterial({map:signTexture(label)}));sign.position.set(0,48,20);g.add(sign);
+   g.position.set(x,0,z);scene3D.add(g);
+  };
+  zunga(760,560,'ZUNGA • QUITANDA');zunga(1420,880,'GINGUBA • KITABA');zunga(1920,650,'BANANA ASSADA');
+  const flagPole=new T.Mesh(new T.CylinderGeometry(1.4,1.8,92,8),mat(0x5c5143));flagPole.position.set(350,46,760);scene3D.add(flagPole);
+  const flag=new T.Group();
+  streetBox(flag,0xcc252b,42,13,1,0,0,0);streetBox(flag,0x171717,42,13,1,0,-13,0);
+  const emblem=new T.Mesh(new T.CircleGeometry(5,16),mat(0xe7b83e));emblem.position.set(0,-6,1);flag.add(emblem);
+  flag.position.set(373,80,760);scene3D.add(flag);
+  const mural=new T.Group();
+  streetBox(mural,0xeee2c5,100,48,3,0,24,0);
+  streetBox(mural,0xcc252b,100,15,2,0,8,2);streetBox(mural,0x171717,100,15,2,0,23,2);
+  streetBox(mural,0xe7b83e,7,24,2,-28,24,4);streetBox(mural,0xe7b83e,7,24,2,28,24,4);
+  mural.position.set(2280,0,1120);scene3D.add(mural);
   const pump=new T.Group();streetBox(pump,0xe9e7df,72,28,54,0,14,0);streetBox(pump,0xc5222c,76,5,58,0,30,0);streetBox(pump,0xe7e4d8,18,32,15,-12,17,0);streetBox(pump,0x263b4c,9,20,3,-12,17,9);pump.position.set(2050,0,390);scene3D.add(pump);
   const farmGround=new T.Mesh(new T.BoxGeometry(1100,1,650),mat(0x98794c));farmGround.position.set(630,0,2175);scene3D.add(farmGround);
   for(let i=0;i<3;i++)for(let j=0;j<6;j++){const plot=new T.Mesh(new T.BoxGeometry(115,2,90),mat(0x694d32));plot.position.set(207+j*155,1,1965+i*165);scene3D.add(plot)}
@@ -333,7 +358,7 @@ function buildInterior3D(){
  const floor=mat(0x8b765e),wall=mat(0xd8c6a5),trim=mat(0x554638),wood=mat(0x704b32),metal=mat(0x3e4947),glass=new T.MeshStandardMaterial({color:0x8fc4d1,roughness:.2,transparent:true,opacity:.48});
  const rw=Math.max(150,W*.42),rd=Math.max(190,H*.42),h=78;
  const box=(w,hh,d,m,x,y,z)=>{const o=new T.Mesh(new T.BoxGeometry(w,hh,d),m);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;g.add(o);return o};
- box(rw,2,rd,floor,0,-1,0);box(rw,h,5,wall,0,h/2,-rd/2);box(5,h,rd,wall,-rw/2,h/2,0);box(5,h,rd,wall,rw/2,h/2,0);box(rw,h,5,wall,0,h/2,rd/2);box(rw,3,rd,trim,0,h+1,0);
+ box(rw,2,rd,floor,0,-1,0);box(rw,h,5,wall,0,h/2,-rd/2);box(5,h,rd,wall,-rw/2,h/2,0);box(5,h,rd,wall,rw/2,h/2,0);box(rw,h,5,wall,0,h/2,rd/2);/* teto removido: interior totalmente aberto para a câmara aérea */
  box(rw*.48,17,12,wood,0,10,-rd*.2);box(rw*.5,2,14,trim,0,19,-rd*.2);
  for(let i=0;i<4;i++){box(rw*.36,2,5,wood,0,25+i*10,-rd*.43);for(let j=0;j<3;j++)box(7,6,7,[wood,metal,wall][(i+j)%3],-rw*.12+j*rw*.12,29+i*10,-rd*.43)}
  box(38,2,28,wood,-rw*.23,10,rd*.15);box(38,2,28,wood,rw*.23,10,rd*.15);
@@ -391,7 +416,7 @@ function render3D(){
  if(interior){
   const scale=.42;px=(player.x-W/2)*scale;pz=(player.y-(H-145))*scale;
   const desired=new T.Vector3(px+Math.sin(cameraYaw)*78,64,pz-Math.cos(cameraYaw)*78);
-  camera3D.position.lerp(new T.Vector3(px+Math.sin(cameraYaw)*92,190,pz-Math.cos(cameraYaw)*92),.12);camera3D.lookAt(px,0,pz);player3D.position.set(px,0,pz);
+  camera3D.position.lerp(new T.Vector3(px+Math.sin(cameraYaw)*76,148,pz-Math.cos(cameraYaw)*76),.12);camera3D.lookAt(px,0,pz);player3D.position.set(px,0,pz);
  }else{
   const target=driving?car:player;px=target.x;pz=target.y;
   const desired=new T.Vector3(px+Math.sin(cameraYaw)*cameraOrbitDistance,cameraOrbitHeight,pz-Math.cos(cameraYaw)*cameraOrbitDistance);
