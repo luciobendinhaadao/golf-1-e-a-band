@@ -225,8 +225,8 @@ function render3D(){
  if(!threeReady||!renderer3D)return;
  if(interior){$('world3d').style.display='none';canvas.style.display='block';return}
  $('world3d').style.display='block';canvas.style.display='none';
- const T=window.THREE,target=driving?car:player,px=target.x,pz=target.y,angle=driving?car.angle:({up:-Math.PI/2,right:0,down:Math.PI/2,left:Math.PI})[avatarFacing]||0;
- const fx=driving?Math.cos(car.angle):Math.sin(angle),fz=driving?Math.sin(car.angle):Math.cos(angle);
+ const T=window.THREE,target=driving?car:player,px=target.x,pz=target.y,dirs={up:[0,-1],right:[1,0],down:[0,1],left:[-1,0]};
+ const fx=driving?Math.cos(car.angle):(dirs[avatarFacing]||[0,1])[0],fz=driving?Math.sin(car.angle):(dirs[avatarFacing]||[0,1])[1];
  const desired=new T.Vector3(px-fx*175,115,pz-fz*175+0.01);
  camera3D.position.lerp(desired,.12);camera3D.lookAt(px,28,pz);
  if(player3D){player3D.position.set(player.x,0,player.y);player3D.rotation.y=({up:Math.PI,right:Math.PI/2,down:0,left:-Math.PI/2})[avatarFacing]||0;const swing=moveBlend>.05?Math.sin(walkPhase)*.48:0;player3D.userData.limbs.forEach((l,i)=>{l.rotation.x=(i%2===0?1:-1)*swing});player3D.visible=!driving}
