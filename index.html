@@ -169,7 +169,7 @@ restoreSession();setInterval(saveGame,12000);
 
 
 /* GOLF1_THREE_WORLD — camada 3D com fallback 2D */
-let renderer3D=null,scene3D=null,camera3D=null,world3D=null,player3D=null,car3D=null,threeReady=false,threeClock=0;
+let renderer3D=null,scene3D=null,camera3D=null,world3D=null,player3D=null,car3D=null,threeReady=false,threeClock=0,cameraYaw=0,cameraPointer=null,cameraLastX=0;
 function init3D(){
  if(!window.THREE)return false;
  try{
@@ -225,7 +225,7 @@ function init3D(){
   trees.forEach(t=>{const g=new T.Group(),tr=new T.Mesh(new T.CylinderGeometry(3,5,26,7),trunkMat);tr.position.y=13;tr.castShadow=true;g.add(tr);for(let i=0;i<3;i++){const crown=new T.Mesh(new T.SphereGeometry(13-i*1.5,8,7),treeMat);crown.position.set((i-1)*8,31+(i%2)*5,0);crown.castShadow=true;g.add(crown)}g.position.set(t.x,0,t.y);scene3D.add(g)});
   const farmGround=new T.Mesh(new T.BoxGeometry(1100,1,650),mat(0x98794c));farmGround.position.set(630,0,2175);scene3D.add(farmGround);
   for(let i=0;i<3;i++)for(let j=0;j<6;j++){const plot=new T.Mesh(new T.BoxGeometry(115,2,90),mat(0x694d32));plot.position.set(207+j*155,1,1965+i*165);scene3D.add(plot)}
-  npcs.filter(n=>!n.workplace).forEach(n=>{const g=makeHumanoid3D(n.color||'#b94e38',false);g.position.set(n.x,0,n.y);scene3D.add(g);n._three=g});
+  npcs.filter(n=>!n.workplace).forEach(n=>{const g=makeHumanoid3D(n.color||'#b94e38',false,n.name);g.position.set(n.x,0,n.y);scene3D.add(g);n._three=g});
   player3D=makeHumanoid3D('#285d3c',true);scene3D.add(player3D);
   car3D=new T.Group();
   const carPaint=mat(0x17669a,.32),rubber=mat(0x111416),chrome=mat(0xbfc7c8,.3),glass=mat(0x8fc4d1,.18),lampMat=new T.MeshStandardMaterial({color:0xfff1c4,emissive:0xffd77a,emissiveIntensity:.5});
@@ -241,21 +241,91 @@ function init3D(){
   [[-20,10,-18],[20,10,-18],[-20,10,18],[20,10,18]].forEach(p=>{const w=new T.Group(),tyre=new T.Mesh(new T.CylinderGeometry(8,8,5,16),wheelMat),rim=new T.Mesh(new T.CylinderGeometry(4.2,4.2,5.4,12),hub);tyre.rotation.z=Math.PI/2;rim.rotation.z=Math.PI/2;w.add(tyre,rim);w.position.set(...p);car3D.add(w);wheels.push(w)});
   car3D.userData.wheels=wheels;scene3D.add(car3D);
   addEventListener('resize',()=>{if(!renderer3D)return;renderer3D.setSize(innerWidth,innerHeight);camera3D.aspect=innerWidth/innerHeight;camera3D.updateProjectionMatrix()});
-  canvas.style.display='none';el.style.display='block';threeReady=true;return true;
+  canvas.style.display='none';el.style.display='block';threeReady=true;bindCameraOrbit();return true;
  }catch(err){console.warn('3D indisponível; a versão 2D continua ativa.',err);return false}
 }
-function makeHumanoid3D(color,isPlayer){
- const T=window.THREE,g=new T.Group(),skin=avatar.skin==='🏾'?0x875334:avatar.skin==='🏽'?0xb87950:avatar.skin==='🏻'?0xd7a17c:0x57351f;
+function makeHumanoid3D(color,isPlayer,name){
+ const T=window.THREE,g=new T.Group();
+ const skin=avatar.skin==='🏾'?0x875334:avatar.skin==='🏽'?0xb87950:avatar.skin==='🏻'?0xd7a17c:0x57351f;
  const outfitMap={green:0x285d3c,blue:0x286a9a,red:0x9b3d38,white:0xe7e5dc};
- const cloth=new T.MeshStandardMaterial({color:isPlayer?(outfitMap[avatar.outfit]||0x285d3c):color,roughness:.78}),skinMat=new T.MeshStandardMaterial({color:isPlayer?skin:0x875334}),dark=new T.MeshStandardMaterial({color:0x211b18});
- const torso=new T.Mesh(new T.CapsuleGeometry(8,14,5,10),cloth);torso.position.y=27;torso.castShadow=true;g.add(torso);
- const neck=new T.Mesh(new T.CylinderGeometry(3,3,5,8),skinMat);neck.position.y=38;g.add(neck);
- const head=new T.Mesh(new T.SphereGeometry(7.5,14,12),skinMat);head.position.y=47;head.castShadow=true;g.add(head);
- const hair=new T.Mesh(new T.SphereGeometry(7.8,12,8,0,Math.PI*2,0,Math.PI*.55),dark);hair.position.y=50;g.add(hair);
- const limbs=[];[-1,1].forEach(side=>{const leg=new T.Mesh(new T.CapsuleGeometry(3,13,4,8),dark);leg.position.set(side*4,10,0);g.add(leg);limbs.push(leg);const arm=new T.Mesh(new T.CapsuleGeometry(2.7,11,4,8),cloth);arm.position.set(side*10,27,0);g.add(arm);limbs.push(arm)});
- const labelCanvas=document.createElement('canvas');labelCanvas.width=256;labelCanvas.height=64;const lc=labelCanvas.getContext('2d');lc.fillStyle='#10291f';lc.fillRect(4,4,248,56);lc.strokeStyle='#edc968';lc.lineWidth=4;lc.strokeRect(4,4,248,56);lc.fillStyle='#fff';lc.font='bold 23px system-ui';lc.textAlign='center';lc.textBaseline='middle';lc.fillText(isPlayer?'JOGADOR':'COTA',128,32);
- const label=new T.Sprite(new T.SpriteMaterial({map:new T.CanvasTexture(labelCanvas),depthTest:false}));label.scale.set(56,14,1);label.position.y=68;g.add(label);
- g.userData.limbs=limbs;g.userData.torso=torso;return g;
+ const cloth=new T.MeshStandardMaterial({color:isPlayer?(outfitMap[avatar.outfit]||0x285d3c):color,roughness:.78});
+ const pants=new T.MeshStandardMaterial({color:isPlayer?0x263342:0x303943,roughness:.88});
+ const skinMat=new T.MeshStandardMaterial({color:isPlayer?skin:0x875334,roughness:.9});
+ const dark=new T.MeshStandardMaterial({color:0x211b18,roughness:.95});
+ const shoe=new T.MeshStandardMaterial({color:0x24282a,roughness:.82}),sole=new T.MeshStandardMaterial({color:0xe9e6dc,roughness:.8});
+ const white=new T.MeshStandardMaterial({color:0xf4eee2}),iris=new T.MeshStandardMaterial({color:0x17191b});
+ const part=(geo,mat,parent,pos,scale)=>{const m=new T.Mesh(geo,mat);m.position.set(...pos);if(scale)m.scale.set(...scale);m.castShadow=true;m.receiveShadow=true;parent.add(m);return m};
+ const sphere=(mat,parent,pos,scale)=>part(new T.SphereGeometry(1,14,12),mat,parent,pos,scale);
+ const capsule=(mat,parent,pos,r,len)=>part(new T.CapsuleGeometry(r,len,4,10),mat,parent,pos);
+ const limb=(parent,mat,upperLen,lowerLen,r,handMat)=>{
+  const pivot=new T.Group();parent.add(pivot);
+  capsule(mat,pivot,[0,-upperLen*.48,0],r,upperLen*.55);
+  const joint=sphere(handMat||mat,pivot,[0,-upperLen,0],[r*.82,r*.82,r*.82]);
+  const elbow=new T.Group();elbow.position.y=-upperLen; pivot.add(elbow);
+  capsule(mat,elbow,[0,-lowerLen*.48,0],r*.82,lowerLen*.58);
+  sphere(handMat||mat,elbow,[0,-lowerLen,0],[r*.72,r*.82,r*.55]);
+  return {pivot,elbow};
+ };
+ const hips=new T.Group();hips.position.y=16;g.add(hips);
+ part(new T.BoxGeometry(12,8,7),pants,hips,[0,0,0]);
+ const legs=[];
+ [-1,1].forEach(side=>{
+  const hip=new T.Group();hip.position.set(side*4.1,-2,0);hips.add(hip);
+  capsule(pants,hip,[0,-6.3,0],3.5,7);
+  const knee=sphere(pants,hip,[0,-12.5,0],[3.2,3.1,3.1]);
+  const shin=new T.Group();shin.position.y=-12.5;hip.add(shin);
+  capsule(pants,shin,[0,-5.3,0],2.7,6);
+  const foot=new T.Group();foot.position.set(0,-10.7,2.1);shin.add(foot);
+  part(new T.BoxGeometry(7,3,11),sole,foot,[0,-.8,1.4]);
+  part(new T.BoxGeometry(6.5,4,9),shoe,foot,[0,1,1.5]);
+  legs.push({hip,shin,foot});
+ });
+ const torso=new T.Group();torso.position.y=25;g.add(torso);
+ capsule(cloth,torso,[0,0,0],6.5,11);
+ part(new T.BoxGeometry(11,3,7),cloth,torso,[0,5.4,0]);
+ part(new T.BoxGeometry(3.5,2,1),white,torso,[0,4.4,6.15]);
+ const neck=capsule(skinMat,torso,[0,9,0],2.2,2.2);
+ const head=new T.Group();head.position.set(0,14,0);torso.add(head);
+ sphere(skinMat,head,[0,0,0],[5.8,7.2,5.2]);
+ // face points toward local +Z
+ sphere(white,head,[-2.1,1.1,4.45],[1.05,1.2,.55]);sphere(white,head,[2.1,1.1,4.45],[1.05,1.2,.55]);
+ sphere(iris,head,[-2.1,1,4.95],[.42,.65,.25]);sphere(iris,head,[2.1,1,4.95],[.42,.65,.25]);
+ part(new T.BoxGeometry(1.3,.45,.5),dark,head,[-2.1,2.6,4.7]);part(new T.BoxGeometry(1.3,.45,.5),dark,head,[2.1,2.6,4.7]);
+ part(new T.ConeGeometry(.75,1.8,5),skinMat,head,[0,-.4,5.1],[1,1,1]);
+ part(new T.BoxGeometry(1.8,.45,.35),dark,head,[0,-3.1,4.9]);
+ const hairType=isPlayer?avatar.hair:'short';
+ if(hairType==='curly'){
+  for(let i=0;i<9;i++){const a=i*Math.PI*2/9;sphere(dark,head,[Math.cos(a)*4.4,5.3,Math.sin(a)*3.6],[2.5,2.4,2.5])}
+  sphere(dark,head,[0,6.2,0],[5.5,2.4,5.2]);
+ }else if(hairType==='braids'){
+  sphere(dark,head,[0,5.1,0],[5.9,2.6,5.2]);
+  [-1,1].forEach(side=>{for(let j=0;j<4;j++)sphere(dark,head,[side*5.1,2.5-j*2.5,side*.3],[1.15,2,1.15])});
+ }else{
+  sphere(dark,head,[0,5.1,-.4],[5.9,2.6,5.2]);
+  if(hairType==='fade'){sphere(dark,head,[0,3.7,-3.5],[4.5,1.6,1.8])}
+ }
+ const arms=[];
+ [-1,1].forEach(side=>{
+  const shoulder=new T.Group();shoulder.position.set(side*7.2,5,0);torso.add(shoulder);
+  sphere(cloth,shoulder,[0,0,0],[3.4,3.5,3.4]);
+  const a=limb(shoulder,cloth,9,8,2.25,skinMat);a.pivot.position.y=-1.5;
+  part(new T.BoxGeometry(2.8,2.6,2.8),skinMat,a.elbow,[0,-8,0]);
+  arms.push(a);
+ });
+ const shadow=new T.Mesh(new T.CircleGeometry(10,18),new T.MeshBasicMaterial({color:0x101712,transparent:true,opacity:.22,depthWrite:false}));shadow.rotation.x=-Math.PI/2;shadow.position.y=.35;g.add(shadow);
+ const labelCanvas=document.createElement('canvas');labelCanvas.width=256;labelCanvas.height=48;
+ const lc=labelCanvas.getContext('2d');lc.fillStyle='rgba(12,27,22,.64)';lc.beginPath();lc.roundRect(5,5,246,38,13);lc.fill();
+ lc.fillStyle='#f6f1df';lc.font='600 22px system-ui';lc.textAlign='center';lc.textBaseline='middle';lc.fillText((isPlayer?'':(name||'COTA')).slice(0,22),128,24);
+ const label=new T.Sprite(new T.SpriteMaterial({map:new T.CanvasTexture(labelCanvas),transparent:true,depthTest:true,depthWrite:false}));
+ label.scale.set(isPlayer?0.01:25, isPlayer?0.01:4.7,1);label.position.y=62;label.visible=!isPlayer;g.add(label);
+ g.userData={torso,head,arms,legs,label,breath:Math.random()*6.28,isPlayer};
+ return g;
+}
+function bindCameraOrbit(){
+ const el=$('world3d');if(!el||el.dataset.orbitBound)return;el.dataset.orbitBound='1';
+ document.addEventListener('pointerdown',e=>{if(!threeReady||interior||e.pointerType==='mouse'||e.clientY>innerHeight*.72||e.clientX<innerWidth*.24)return;cameraPointer=e.pointerId;cameraLastX=e.clientX},{passive:true});
+ document.addEventListener('pointermove',e=>{if(cameraPointer!==e.pointerId)return;const dx=e.clientX-cameraLastX;cameraLastX=e.clientX;cameraYaw-=dx*.008},{passive:true});
+ const stop=e=>{if(cameraPointer===e.pointerId)cameraPointer=null};document.addEventListener('pointerup',stop,{passive:true});document.addEventListener('pointercancel',stop,{passive:true});
 }
 function render3D(){
  if(!threeReady||!renderer3D)return;
@@ -263,9 +333,19 @@ function render3D(){
  $('world3d').style.display='block';canvas.style.display='none';
  const T=window.THREE,target=driving?car:player,px=target.x,pz=target.y,dirs={up:[0,-1],right:[1,0],down:[0,1],left:[-1,0]};
  const fx=driving?Math.cos(car.angle):(dirs[avatarFacing]||[0,1])[0],fz=driving?Math.sin(car.angle):(dirs[avatarFacing]||[0,1])[1];
- const desired=new T.Vector3(px-fx*175,115,pz-fz*175+0.01);
- camera3D.position.lerp(desired,.12);camera3D.lookAt(px,28,pz);
- if(player3D){player3D.position.set(player.x,0,player.y);player3D.rotation.y=({up:Math.PI,right:Math.PI/2,down:0,left:-Math.PI/2})[avatarFacing]||0;const swing=moveBlend>.05?Math.sin(walkPhase)*.48:0;player3D.userData.limbs.forEach((l,i)=>{l.rotation.x=(i%2===0?1:-1)*swing});player3D.visible=!driving}
+ const baseX=-fx,baseZ=-fz,cos=Math.cos(cameraYaw),sin=Math.sin(cameraYaw),rx=baseX*cos-baseZ*sin,rz=baseX*sin+baseZ*cos;
+ const desired=new T.Vector3(px+rx*142,83,pz+rz*142);
+ camera3D.position.lerp(desired,.105);camera3D.lookAt(px,31,pz);
+ if(player3D){
+  player3D.position.set(player.x,0,player.y);player3D.rotation.y=({up:Math.PI,right:Math.PI/2,down:0,left:-Math.PI/2})[avatarFacing]||0;
+  const moving=moveBlend>.05,swing=moving?Math.sin(walkPhase)*.62:0,breath=Math.sin(threeClock*2.1+player3D.userData.breath)*.018;
+  player3D.userData.legs.forEach((l,i)=>{const v=(i===0?1:-1)*swing;l.hip.rotation.x=v;l.shin.rotation.x=Math.max(0,-v)*.72;l.foot.rotation.x=-l.shin.rotation.x*.35});
+  player3D.userData.arms.forEach((a,i)=>{const v=(i===0?-1:1)*swing;a.pivot.rotation.x=v;a.elbow.rotation.x=-.12+Math.max(0,v)*.32});
+  player3D.userData.torso.position.y=25+breath;player3D.userData.torso.rotation.z=moving?Math.sin(walkPhase)*.035:0;
+  player3D.visible=!driving;
+ }
+ scene3D.traverse(o=>{if(o.userData&&o.userData.isPlayer===false&&o.userData.legs){const ph=threeClock*3.4+o.userData.breath;const walking=Math.sin(ph)*.22;o.userData.legs.forEach((l,i)=>{l.hip.rotation.x=(i===0?1:-1)*walking;l.shin.rotation.x=Math.max(0,-walking)*.5});o.userData.arms.forEach((a,i)=>a.pivot.rotation.x=(i===0?-1:1)*walking*.7)}});
+ threeClock+=.016;
  car3D.position.set(car.x,0,car.y);car3D.rotation.y=-car.angle+Math.PI/2;car3D.visible=driving;if(car3D.userData.wheels)car3D.userData.wheels.forEach(w=>w.rotation.x+=car.speed*.0018);
  if(gameMinutes<360||gameMinutes>1080){scene3D.background.set(0x25364d);scene3D.fog.color.set(0x25364d)}else{scene3D.background.set(0x9fc4d8);scene3D.fog.color.set(0x9fc4d8)}
  renderer3D.render(scene3D,camera3D);
