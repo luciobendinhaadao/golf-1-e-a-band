@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#18291f">
 <title>GOLF 1 É A BANDA — Mundo 3D</title>
-<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+
 <style>
 :root{--gold:#f4c65e;--dark:#102019;--panel:#102019ee;--blue:#5ba8d5}
 *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#283b2d;color:#fff;font-family:system-ui,-apple-system,sans-serif;touch-action:none}canvas{width:100%;height:100%;display:block}#world3d{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}#game{position:fixed;inset:0;z-index:0}
@@ -274,11 +274,19 @@ function render3D(){
 
 function bootThree(){
  if(window.THREE){init3D();return}
- const fallback=document.createElement('script');
- fallback.src='https://unpkg.com/three@0.160.0/build/three.min.js';
- fallback.onload=()=>{if(!threeReady)init3D()};
- fallback.onerror=()=>{console.error('Motor 3D indisponível: os dois CDNs falharam.');toast('Não foi possível carregar o motor 3D. Verifica a ligação à internet.')};
- document.head.appendChild(fallback);
+ const sources=[
+  'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js',
+  'https://unpkg.com/three@0.160.0/build/three.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js'
+ ];
+ const load=(index)=>{
+  if(index>=sources.length){console.error('Não foi possível carregar o motor 3D.');toast('Motor 3D indisponível. Verifica a ligação e atualiza a página.');return}
+  const script=document.createElement('script');script.src=sources[index];script.async=true;
+  script.onload=()=>{if(window.THREE)init3D();else load(index+1)};
+  script.onerror=()=>load(index+1);
+  document.head.appendChild(script);
+ };
+ load(0);
 }
 
 function loop(t){const dt=Math.min((t-last)/1000||0,.04);last=t;
