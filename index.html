@@ -192,13 +192,34 @@ function init3D(){
   });
   const buildingMats={market:0xb87843,workshop:0x617b67,tailor:0xa36b83,barracks:0x65754c,school:0xb79b50,office:0x627b91,cantina:0x9b6047,police:0x526d91,hospital:0xd5e0dc,field:0x477d55,homes:0xb58c63,yellow:0xe0b82e,apartments:0xa58d70,plaza:0xb79b50,bank:0x4d8294,centralmarket:0xb87843,financeoffice:0x627b91,farm:0x7d9a4e,agristore:0xa77b45,luxury:0xc2a77d,garage:0x697a80};
   const signTexture=(label)=>{const c=document.createElement('canvas');c.width=512;c.height=96;const g=c.getContext('2d');g.fillStyle='#183b2b';g.fillRect(0,0,512,96);g.strokeStyle='#e9ca73';g.lineWidth=7;g.strokeRect(5,5,502,86);g.fillStyle='#fff';g.font='bold 31px system-ui';g.textAlign='center';g.textBaseline='middle';g.fillText(label.slice(0,30),256,49);const tex=new T.CanvasTexture(c);tex.colorSpace=T.SRGBColorSpace;return tex};
-  buildings.forEach(b=>{const g=new T.Group(),h=b.type==='yellow'?105:(b.type==='apartments'||b.type==='financeoffice'?82:54+((b.x+b.y)%3)*9),base=new T.Mesh(new T.BoxGeometry(b.w,h,b.h),mat(buildingMats[b.type]||0x9b927e));base.position.y=h/2;base.castShadow=true;base.receiveShadow=true;g.add(base);
-   const roof=new T.Mesh(new T.BoxGeometry(b.w+5,4,b.h+5),mat(b.type==='yellow'?0xc99c25:0x655d52));roof.position.y=h+2;roof.castShadow=true;g.add(roof);
-   const frontZ=b.h/2+.9,door=new T.Mesh(new T.BoxGeometry(23,34,2),mat(0x563c2b));door.position.set(0,17,frontZ);g.add(door);
-   const winMat=mat(b.type==='hospital'?0x75b9cb:0x6ba5b9,.35);
-   const rows=h>80?3:2,cols=Math.max(2,Math.min(5,Math.floor(b.w/48)));
-   for(let row=0;row<rows;row++)for(let col=0;col<cols;col++){const wx=-b.w/2+28+col*((b.w-56)/Math.max(1,cols-1));if(Math.abs(wx)<19&&row===0)continue;const w=new T.Mesh(new T.BoxGeometry(23,15,2),winMat);w.position.set(wx,26+row*24,frontZ);g.add(w);const sill=new T.Mesh(new T.BoxGeometry(27,2,3),mat(0xe4d7bc));sill.position.set(wx,17+row*24,frontZ+.4);g.add(sill)}
-   const sign=new T.Mesh(new T.PlaneGeometry(Math.min(b.w-12,220),18),new T.MeshBasicMaterial({map:signTexture(b.n),transparent:false}));sign.position.set(0,h+13,b.h/2+1.5);g.add(sign);
+  const windowGlass=mat(0x78b8c8,.22),frameMat=mat(0xf0e5cb),balconyMat=mat(0xd8c9a8),doorMat=mat(0x49372b);
+  buildings.forEach((b,idx)=>{
+   const g=new T.Group(),isYellow=b.type==='yellow',isTall=isYellow||b.type==='apartments'||b.type==='financeoffice';
+   const floors=isYellow?5:(isTall?3:1),floorH=isYellow?27:(isTall?25:48),h=floors*floorH+8;
+   const wallColor=buildingMats[b.type]||0x9b927e,wallMat=mat(wallColor),trim=mat(isYellow?0xf2d36c:0xe4d7bd);
+   const base=new T.Mesh(new T.BoxGeometry(b.w,h,b.h),wallMat);base.position.y=h/2;base.castShadow=true;base.receiveShadow=true;g.add(base);
+   const plinth=new T.Mesh(new T.BoxGeometry(b.w+5,5,b.h+5),mat(0x66594b));plinth.position.y=3;g.add(plinth);
+   const roof=new T.Mesh(new T.BoxGeometry(b.w+8,5,b.h+8),mat(isYellow?0xb98225:0x514b43));roof.position.y=h+2.5;roof.castShadow=true;g.add(roof);
+   const frontZ=b.h/2+1.1,cols=Math.max(2,Math.min(6,Math.floor(b.w/43)));
+   for(let row=0;row<floors;row++){
+    const y=13+row*floorH+floorH*.48;
+    for(let col=0;col<cols;col++){
+     const wx=-b.w/2+Math.max(24,b.w/(cols+1))*(col+1);
+     const ww=isYellow?Math.min(23,b.w/(cols+2)):Math.min(25,b.w/(cols+2));
+     const win=new T.Mesh(new T.BoxGeometry(ww,13,2.2),windowGlass);win.position.set(wx,y,frontZ);g.add(win);
+     const sill=new T.Mesh(new T.BoxGeometry(ww+5,2,4),trim);sill.position.set(wx,y-8,frontZ+1);g.add(sill);
+     const lintel=new T.Mesh(new T.BoxGeometry(ww+4,2,3),trim);lintel.position.set(wx,y+8,frontZ+1);g.add(lintel);
+    }
+    if(isTall){
+     const slab=new T.Mesh(new T.BoxGeometry(b.w+8,3,13),balconyMat);slab.position.set(0,10+row*floorH,b.h/2+7);g.add(slab);
+     const rail=new T.Mesh(new T.BoxGeometry(b.w+6,5,2),mat(0xeee1c8));rail.position.set(0,15+row*floorH,b.h/2+13);g.add(rail);
+     for(let k=0;k<Math.min(9,Math.floor(b.w/22));k++){const post=new T.Mesh(new T.BoxGeometry(2,8,2),mat(0xeee1c8));post.position.set(-b.w/2+12+k*(b.w-24)/Math.max(1,Math.min(9,Math.floor(b.w/22))-1),15+row*floorH,b.h/2+13);g.add(post)}
+    }
+   }
+   const door=new T.Mesh(new T.BoxGeometry(19,30,3),doorMat);door.position.set(0,16,frontZ+1);g.add(door);
+   const sign=new T.Mesh(new T.PlaneGeometry(Math.min(b.w-10,230),isYellow?22:18),new T.MeshBasicMaterial({map:signTexture(isYellow?'PRÉDIO AMARELO':b.n)}));sign.position.set(0,h+13,b.h/2+2);g.add(sign);
+   if(isYellow){const band=new T.Mesh(new T.BoxGeometry(b.w+2,5,b.h+2),mat(0xffd34e));band.position.y=h-4;g.add(band);const canopy=new T.Mesh(new T.BoxGeometry(b.w*.72,4,18),mat(0x9c6d2b));canopy.position.set(0,34,b.h/2+10);g.add(canopy)}
+   else if(['workshop','garage'].includes(b.type)){const awning=new T.Mesh(new T.BoxGeometry(b.w*.72,5,18),mat(0x354b40));awning.position.set(0,39,b.h/2+9);g.add(awning)}
    g.position.set(b.x+b.w/2,0,b.y+b.h/2);scene3D.add(g);b._threeGroup=g;
   });
   const treeMat=mat(0x28613a),trunkMat=mat(0x65452e);
@@ -207,18 +228,34 @@ function init3D(){
   for(let i=0;i<3;i++)for(let j=0;j<6;j++){const plot=new T.Mesh(new T.BoxGeometry(115,2,90),mat(0x694d32));plot.position.set(207+j*155,1,1965+i*165);scene3D.add(plot)}
   npcs.filter(n=>!n.workplace).forEach(n=>{const g=makeHumanoid3D(n.color||'#b94e38',false);g.position.set(n.x,0,n.y);scene3D.add(g);n._three=g});
   player3D=makeHumanoid3D('#285d3c',true);scene3D.add(player3D);
-  car3D=new T.Group();const body=new T.Mesh(new T.BoxGeometry(58,20,30),mat(0x246a9a,.45));body.position.y=17;body.castShadow=true;car3D.add(body);const cabin=new T.Mesh(new T.BoxGeometry(31,17,25),mat(0xb8d7dc,.3));cabin.position.set(-2,34,0);car3D.add(cabin);const wheelMat=mat(0x17191a);[[-19,9,-17],[19,9,-17],[-19,9,17],[19,9,17]].forEach(p=>{const w=new T.Mesh(new T.CylinderGeometry(7,7,5,12),wheelMat);w.rotation.z=Math.PI/2;w.position.set(p[0],p[1],p[2]);car3D.add(w)});scene3D.add(car3D);
+  car3D=new T.Group();
+  const carPaint=mat(0x17669a,.32),rubber=mat(0x111416),chrome=mat(0xbfc7c8,.3),glass=mat(0x8fc4d1,.18),lampMat=new T.MeshStandardMaterial({color:0xfff1c4,emissive:0xffd77a,emissiveIntensity:.5});
+  const chassis=new T.Mesh(new T.BoxGeometry(64,17,34),carPaint);chassis.position.y=17;chassis.castShadow=true;car3D.add(chassis);
+  const bonnet=new T.Mesh(new T.BoxGeometry(20,7,34),carPaint);bonnet.position.set(22,26,0);car3D.add(bonnet);
+  const cabin=new T.Mesh(new T.BoxGeometry(34,18,28),glass);cabin.position.set(-5,34,0);cabin.castShadow=true;car3D.add(cabin);
+  const roof=new T.Mesh(new T.BoxGeometry(29,3,27),carPaint);roof.position.set(-5,44,0);car3D.add(roof);
+  const front=new T.Mesh(new T.BoxGeometry(3,8,27),chrome);front.position.set(33,13,0);car3D.add(front);
+  const grille=new T.Mesh(new T.BoxGeometry(2,6,12),mat(0x171d20));grille.position.set(34,19,0);car3D.add(grille);
+  [-10,10].forEach(z=>{const head=new T.Mesh(new T.BoxGeometry(3,8,8),lampMat);head.position.set(34,22,z);car3D.add(head);const rear=new T.Mesh(new T.BoxGeometry(3,8,7),mat(0xb51e25));rear.position.set(-33,20,z);car3D.add(rear)});
+  const wheelMat=mat(0x111315),hub=mat(0xc4c9c7);
+  const wheels=[];
+  [[-20,10,-18],[20,10,-18],[-20,10,18],[20,10,18]].forEach(p=>{const w=new T.Group(),tyre=new T.Mesh(new T.CylinderGeometry(8,8,5,16),wheelMat),rim=new T.Mesh(new T.CylinderGeometry(4.2,4.2,5.4,12),hub);tyre.rotation.z=Math.PI/2;rim.rotation.z=Math.PI/2;w.add(tyre,rim);w.position.set(...p);car3D.add(w);wheels.push(w)});
+  car3D.userData.wheels=wheels;scene3D.add(car3D);
   addEventListener('resize',()=>{if(!renderer3D)return;renderer3D.setSize(innerWidth,innerHeight);camera3D.aspect=innerWidth/innerHeight;camera3D.updateProjectionMatrix()});
   canvas.style.display='none';el.style.display='block';threeReady=true;return true;
  }catch(err){console.warn('3D indisponível; a versão 2D continua ativa.',err);return false}
 }
 function makeHumanoid3D(color,isPlayer){
  const T=window.THREE,g=new T.Group(),skin=avatar.skin==='🏾'?0x875334:avatar.skin==='🏽'?0xb87950:avatar.skin==='🏻'?0xd7a17c:0x57351f;
- const cloth=new T.MeshStandardMaterial({color:isPlayer?0x285d3c:color,roughness:.8}),skinMat=new T.MeshStandardMaterial({color:isPlayer?skin:0x875334}),dark=new T.MeshStandardMaterial({color:0x211b18});
- const torso=new T.Mesh(new T.CapsuleGeometry(8,13,4,8),cloth);torso.position.y=25;torso.castShadow=true;g.add(torso);
- const head=new T.Mesh(new T.SphereGeometry(7,12,10),skinMat);head.position.y=42;head.castShadow=true;g.add(head);
- const hair=new T.Mesh(new T.SphereGeometry(7.3,10,7,0,Math.PI*2,0,Math.PI*.55),dark);hair.position.y=45;g.add(hair);
- const limbs=[];[-1,1].forEach(side=>{const leg=new T.Mesh(new T.CapsuleGeometry(2.5,10,3,6),dark);leg.position.set(side*4,9,0);g.add(leg);limbs.push(leg);const arm=new T.Mesh(new T.CapsuleGeometry(2,9,3,6),cloth);arm.position.set(side*10,25,0);g.add(arm);limbs.push(arm)});
+ const outfitMap={green:0x285d3c,blue:0x286a9a,red:0x9b3d38,white:0xe7e5dc};
+ const cloth=new T.MeshStandardMaterial({color:isPlayer?(outfitMap[avatar.outfit]||0x285d3c):color,roughness:.78}),skinMat=new T.MeshStandardMaterial({color:isPlayer?skin:0x875334}),dark=new T.MeshStandardMaterial({color:0x211b18});
+ const torso=new T.Mesh(new T.CapsuleGeometry(8,14,5,10),cloth);torso.position.y=27;torso.castShadow=true;g.add(torso);
+ const neck=new T.Mesh(new T.CylinderGeometry(3,3,5,8),skinMat);neck.position.y=38;g.add(neck);
+ const head=new T.Mesh(new T.SphereGeometry(7.5,14,12),skinMat);head.position.y=47;head.castShadow=true;g.add(head);
+ const hair=new T.Mesh(new T.SphereGeometry(7.8,12,8,0,Math.PI*2,0,Math.PI*.55),dark);hair.position.y=50;g.add(hair);
+ const limbs=[];[-1,1].forEach(side=>{const leg=new T.Mesh(new T.CapsuleGeometry(3,13,4,8),dark);leg.position.set(side*4,10,0);g.add(leg);limbs.push(leg);const arm=new T.Mesh(new T.CapsuleGeometry(2.7,11,4,8),cloth);arm.position.set(side*10,27,0);g.add(arm);limbs.push(arm)});
+ const labelCanvas=document.createElement('canvas');labelCanvas.width=256;labelCanvas.height=64;const lc=labelCanvas.getContext('2d');lc.fillStyle='#10291f';lc.fillRect(4,4,248,56);lc.strokeStyle='#edc968';lc.lineWidth=4;lc.strokeRect(4,4,248,56);lc.fillStyle='#fff';lc.font='bold 23px system-ui';lc.textAlign='center';lc.textBaseline='middle';lc.fillText(isPlayer?'JOGADOR':'COTA',128,32);
+ const label=new T.Sprite(new T.SpriteMaterial({map:new T.CanvasTexture(labelCanvas),depthTest:false}));label.scale.set(56,14,1);label.position.y=68;g.add(label);
  g.userData.limbs=limbs;g.userData.torso=torso;return g;
 }
 function render3D(){
@@ -230,7 +267,7 @@ function render3D(){
  const desired=new T.Vector3(px-fx*175,115,pz-fz*175+0.01);
  camera3D.position.lerp(desired,.12);camera3D.lookAt(px,28,pz);
  if(player3D){player3D.position.set(player.x,0,player.y);player3D.rotation.y=({up:Math.PI,right:Math.PI/2,down:0,left:-Math.PI/2})[avatarFacing]||0;const swing=moveBlend>.05?Math.sin(walkPhase)*.48:0;player3D.userData.limbs.forEach((l,i)=>{l.rotation.x=(i%2===0?1:-1)*swing});player3D.visible=!driving}
- car3D.position.set(car.x,0,car.y);car3D.rotation.y=-car.angle+Math.PI/2;car3D.visible=driving;
+ car3D.position.set(car.x,0,car.y);car3D.rotation.y=-car.angle+Math.PI/2;car3D.visible=driving;if(car3D.userData.wheels)car3D.userData.wheels.forEach(w=>w.rotation.x+=car.speed*.0018);
  if(gameMinutes<360||gameMinutes>1080){scene3D.background.set(0x25364d);scene3D.fog.color.set(0x25364d)}else{scene3D.background.set(0x9fc4d8);scene3D.fog.color.set(0x9fc4d8)}
  renderer3D.render(scene3D,camera3D);
 }
