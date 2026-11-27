@@ -169,7 +169,7 @@ restoreSession();setInterval(saveGame,12000);
 
 
 /* GOLF1_THREE_WORLD — camada 3D com fallback 2D */
-let renderer3D=null,scene3D=null,camera3D=null,world3D=null,player3D=null,car3D=null,threeReady=false,threeClock=0,cameraYaw=0,cameraPointer=null,cameraLastX=0,interior3DGroup=null,interiorSceneActive=false,exteriorVisibility=[],moveWorldX=0,moveWorldZ=1,walkTarget3D=null,walkRing3D=null,cameraOrbitDistance=145,cameraOrbitHeight=360,activeTouches=new Map(),pinchStart=0,pinchZoomStart=1;
+let renderer3D=null,scene3D=null,camera3D=null,world3D=null,player3D=null,car3D=null,threeReady=false,threeClock=0,cameraYaw=0,cameraPointer=null,cameraLastX=0,interior3DGroup=null,interiorSceneActive=false,exteriorVisibility=[],moveWorldX=0,moveWorldZ=1,walkTarget3D=null,walkRing3D=null,cameraOrbitDistance=80,cameraOrbitHeight=560,activeTouches=new Map(),pinchStart=0,pinchZoomStart=1;
 function init3D(){
  if(!window.THREE)return false;
  try{
@@ -387,10 +387,10 @@ function bindCameraOrbit(){
  el.addEventListener('pointermove',e=>{
   if(!activeTouches.has(e.pointerId))return;
   const prev=activeTouches.get(e.pointerId);activeTouches.set(e.pointerId,point(e));
-  if(activeTouches.size>=2){const d=pinchDistance();if(pinchStart>0&&d>0){const scale=pinchStart/d;cameraOrbitDistance=Math.max(95,Math.min(250,pinchZoomStart*scale));cameraOrbitHeight=Math.max(235,Math.min(620,360*cameraOrbitDistance/145))}return}
+  if(activeTouches.size>=2){const d=pinchDistance();if(pinchStart>0&&d>0){const scale=pinchStart/d;cameraOrbitDistance=Math.max(50,Math.min(170,pinchZoomStart*scale));cameraOrbitHeight=Math.max(350,Math.min(1190,560*cameraOrbitDistance/80))}return}
   if(cameraPointer!==e.pointerId)return;
   const dx=e.clientX-cameraLastX,dy=e.clientY-Number(el.dataset.lastY||e.clientY);cameraLastX=e.clientX;el.dataset.lastY=e.clientY;
-  cameraYaw-=dx*.008;cameraOrbitHeight=Math.max(260,Math.min(620,cameraOrbitHeight+dy*.55));
+  cameraYaw-=dx*.008;cameraOrbitHeight=Math.max(400,Math.min(1100,cameraOrbitHeight+dy*.55));
  },{passive:true});
  const finish=e=>{
   if(!activeTouches.has(e.pointerId))return;
@@ -408,7 +408,7 @@ function bindCameraOrbit(){
   if(activeTouches.size<2)pinchStart=0;
  };
  el.addEventListener('pointerup',finish,{passive:true});el.addEventListener('pointercancel',finish,{passive:true});
- el.addEventListener('wheel',e=>{cameraOrbitDistance=Math.max(95,Math.min(250,cameraOrbitDistance+e.deltaY*.25));cameraOrbitHeight=Math.max(235,Math.min(620,360*cameraOrbitDistance/145))},{passive:true});
+ el.addEventListener('wheel',e=>{cameraOrbitDistance=Math.max(50,Math.min(170,cameraOrbitDistance+e.deltaY*.25));cameraOrbitHeight=Math.max(350,Math.min(1190,560*cameraOrbitDistance/80))},{passive:true});
 }
 function render3D(){
  if(!threeReady||!renderer3D)return;
