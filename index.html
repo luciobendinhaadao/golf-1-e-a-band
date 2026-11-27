@@ -160,7 +160,7 @@ restoreSession();setInterval(saveGame,12000);
 
 
 /* GOLF1_THREE_WORLD — camada 3D com fallback 2D */
-let renderer3D=null,scene3D=null,camera3D=null,world3D=null,player3D=null,car3D=null,threeReady=false,threeClock=0,cameraYaw=0,cameraPointer=null,cameraLastX=0,interior3DGroup=null,interiorSceneActive=false,exteriorVisibility=[],moveWorldX=0,moveWorldZ=1,walkTarget3D=null,walkRing3D=null,cameraOrbitDistance=80,cameraOrbitHeight=560,activeTouches=new Map(),pinchStart=0,pinchZoomStart=1;
+let renderer3D=null,scene3D=null,camera3D=null,world3D=null,player3D=null,car3D=null,threeReady=false,threeClock=0,cameraYaw=0,cameraPointer=null,cameraLastX=0,interior3DGroup=null,interiorSceneActive=false,exteriorVisibility=[],moveWorldX=0,moveWorldZ=1,walkTarget3D=null,walkRing3D=null,cameraOrbitDistance=145,cameraOrbitHeight=115,activeTouches=new Map(),pinchStart=0,pinchZoomStart=1;
 function init3D(){
  if(!window.THREE)return false;
  try{
@@ -168,8 +168,8 @@ function init3D(){
   renderer3D=new T.WebGLRenderer({canvas:el,antialias:true,powerPreference:'high-performance',alpha:false});
   renderer3D.setPixelRatio(Math.min(devicePixelRatio||1,1.5));renderer3D.setSize(innerWidth,innerHeight);renderer3D.shadowMap.enabled=true;renderer3D.shadowMap.type=T.PCFSoftShadowMap;
   renderer3D.outputColorSpace=T.SRGBColorSpace;renderer3D.toneMapping=T.ACESFilmicToneMapping;renderer3D.toneMappingExposure=1.05;
-  scene3D=new T.Scene();scene3D.background=new T.Color(0x9fc4d8);scene3D.fog=new T.Fog(0x9fc4d8,650,2300);
-  camera3D=new T.PerspectiveCamera(48,innerWidth/innerHeight,.1,4000);
+  scene3D=new T.Scene();scene3D.background=new T.Color(0x9fc4d8);scene3D.fog=new T.Fog(0x9fc4d8,650,4200);
+  camera3D=new T.PerspectiveCamera(48,innerWidth/innerHeight,.1,18000);
   scene3D.add(new T.HemisphereLight(0xe8f4ff,0x596348,2.1));
   const sun=new T.DirectionalLight(0xffe2b2,2.2);sun.position.set(-350,650,250);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-650;sun.shadow.camera.right=650;sun.shadow.camera.top=650;sun.shadow.camera.bottom=-650;scene3D.add(sun);
   const mat=(color,roughness=.9)=>new T.MeshStandardMaterial({color,roughness});
@@ -363,6 +363,11 @@ function setInterior3D(active){
  if(active){exteriorVisibility=[];scene3D.children.forEach(o=>{if(o!==player3D&&!o.isLight){exteriorVisibility.push([o,o.visible]);o.visible=false}});interior3DGroup=buildInterior3D();scene3D.add(interior3DGroup)}
  else{if(interior3DGroup){scene3D.remove(interior3DGroup);interior3DGroup=null}exteriorVisibility.forEach(([o,v])=>o.visible=v);exteriorVisibility=[]}
 }
+function setCameraZoom(value){
+ cameraOrbitDistance=Math.max(65,Math.min(3600,value));
+ cameraOrbitHeight=Math.max(78,Math.min(3400,cameraOrbitDistance*.79));
+ if(scene3D&&scene3D.fog){scene3D.fog.near=Math.max(650,cameraOrbitDistance*1.05);scene3D.fog.far=Math.max(4200,cameraOrbitDistance*4.5)}
+}
 function bindCameraOrbit(){
  const el=$('world3d');if(!el||el.dataset.orbitBound)return;el.dataset.orbitBound='1';
  el.style.touchAction='none';
@@ -378,10 +383,10 @@ function bindCameraOrbit(){
  el.addEventListener('pointermove',e=>{
   if(!activeTouches.has(e.pointerId))return;
   const prev=activeTouches.get(e.pointerId);activeTouches.set(e.pointerId,point(e));
-  if(activeTouches.size>=2){const d=pinchDistance();if(pinchStart>0&&d>0){const scale=pinchStart/d;cameraOrbitDistance=Math.max(50,Math.min(170,pinchZoomStart*scale));cameraOrbitHeight=Math.max(350,Math.min(1190,560*cameraOrbitDistance/80))}return}
+  if(activeTouches.size>=2){const d=pinchDistance();if(pinchStart>0&&d>0)setCameraZoom(pinchZoomStart*(pinchStart/d));return}
   if(cameraPointer!==e.pointerId)return;
   const dx=e.clientX-cameraLastX,dy=e.clientY-Number(el.dataset.lastY||e.clientY);cameraLastX=e.clientX;el.dataset.lastY=e.clientY;
-  cameraYaw-=dx*.008;cameraOrbitHeight=Math.max(400,Math.min(1100,cameraOrbitHeight+dy*.55));
+  cameraYaw-=dx*.009;cameraOrbitHeight=Math.max(75,Math.min(3400,cameraOrbitHeight+dy*2.1));
  },{passive:true});
  const finish=e=>{
   if(!activeTouches.has(e.pointerId))return;
@@ -399,7 +404,7 @@ function bindCameraOrbit(){
   if(activeTouches.size<2)pinchStart=0;
  };
  el.addEventListener('pointerup',finish,{passive:true});el.addEventListener('pointercancel',finish,{passive:true});
- el.addEventListener('wheel',e=>{cameraOrbitDistance=Math.max(50,Math.min(170,cameraOrbitDistance+e.deltaY*.25));cameraOrbitHeight=Math.max(350,Math.min(1190,560*cameraOrbitDistance/80))},{passive:true});
+ el.addEventListener('wheel',e=>{setCameraZoom(cameraOrbitDistance+e.deltaY*.8)},{passive:true});
 }
 function render3D(){
  if(!threeReady||!renderer3D)return;
@@ -408,11 +413,11 @@ function render3D(){
  if(interior){
   const scale=.42;px=(player.x-W/2)*scale;pz=(player.y-(H-145))*scale;
   const desired=new T.Vector3(px+Math.sin(cameraYaw)*78,64,pz-Math.cos(cameraYaw)*78);
-  camera3D.position.lerp(new T.Vector3(px+Math.sin(cameraYaw)*76,148,pz-Math.cos(cameraYaw)*76),.12);camera3D.lookAt(px,0,pz);player3D.position.set(px,0,pz);
+  camera3D.position.lerp(new T.Vector3(px+Math.sin(cameraYaw)*76,112,pz-Math.cos(cameraYaw)*76),.12);camera3D.lookAt(px,25,pz);player3D.position.set(px,0,pz);
  }else{
   const target=driving?car:player;px=target.x;pz=target.y;
   const desired=new T.Vector3(px+Math.sin(cameraYaw)*cameraOrbitDistance,cameraOrbitHeight,pz-Math.cos(cameraYaw)*cameraOrbitDistance);
-  camera3D.position.lerp(desired,.12);camera3D.lookAt(px,0,pz);player3D.position.set(player.x,0,player.y);
+  camera3D.position.lerp(desired,.09);camera3D.lookAt(px,28,pz);player3D.position.set(player.x,0,player.y);
  }
  if(player3D){
   if(moving)player3D.rotation.y=Math.atan2(moveWorldX,moveWorldZ);
