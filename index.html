@@ -111,7 +111,7 @@ $('closeDialog').onclick=closeDialog;$('dialogClose2').onclick=closeDialog;
 $('dialogReward').onclick=()=>{if(dialogData&&dialogData.cb)dialogData.cb();closeDialog()};
 const WORKPLACE_DATA={workshop:{role:'Mecânico',salary:2200},tailor:{role:'Alfaiate',salary:1800},barracks:{role:'Segurança',salary:3500},school:{role:'Funcionário escolar',salary:2200},office:{role:'Assistente de escritório',salary:2500},financeoffice:{role:'Funcionário financeiro',salary:6000},cantina:{role:'Cozinheiro / Atendente',salary:1800},market:{role:'Comerciante',salary:1500},police:{role:'Polícia',salary:3500},hospital:{role:'Assistente hospitalar',salary:2200},farm:{role:'Agricultor',salary:1500},agristore:{role:'Armazém agrícola',salary:1800},garage:{role:'Assistente de garagem',salary:2200}};
 function workplaceFor(type){return WORKPLACE_DATA[type]||null}
-function startWork(place,salary){if(working)return;const earn=Math.max(0,Math.floor(Number(salary)||1500));working={start:performance.now(),duration:90000,earn,place};$('workbox').classList.add('show');$('workbox').querySelector('small').textContent='Turno em andamento. Pagamento ao terminar.';toast('Turno iniciado: '+place+'. Duração: 01:30.')}
+function startWork(place,salary){if(working)return;const earn=Math.max(0,Math.floor(Number(salary)||1500));working={start:performance.now(),duration:90000,earn,place};$('workbox').classList.add('show');$('workbox').querySelector('small').textContent='Turno de teste local. O servidor confirmará os pagamentos na versão online.';toast('Turno iniciado: '+place+'. Duração: 01:30.')}
 function completeWork(){const finished=working;if(!finished)return;cash+=finished.earn;rep+=1;toast('Turno concluído! +'+finished.earn.toLocaleString('pt-PT')+' Kz.');working=null;$('workbox').classList.remove('show');updateHUD();saveGame();}
 
 function action(){if($('dialog').classList.contains('show')||$('phone').classList.contains('show'))return;
@@ -120,7 +120,7 @@ if(interior){
  if(interior.type==='hospital'&&player.y<H-180){energy=100;hunger=Math.min(100,hunger+15);updateHUD();toast('Recuperaste energia no hospital.');return}
  if(Math.hypot(player.x-car.x,player.y-car.y)<85){driving=true;car.x=player.x;car.y=player.y;updateHUD();sound(180,.2);toast('Entraste no Golf 1!');return}
  const workInfo=workplaceFor(interior.type);
- if(workInfo){openDialog(interior.n,workInfo.role,'Turno de trabalho: 01:30 minutos. Recebes '+workInfo.salary.toLocaleString('pt-PT')+' Kz quando terminares.',0,0,()=>{});$('dialogReward').style.display='none';const bt=document.createElement('button');bt.textContent='TRABALHAR • 01:30';bt.onclick=()=>{closeDialog();startWork(interior.n,workInfo.salary)};$('dialogActions').prepend(bt);return}
+ if(workInfo){openDialog(interior.n,workInfo.role,'Turno de trabalho: 01:30 minutos. Recebes '+workInfo.salary.toLocaleString('pt-PT')+' Kz no teste local; no multiplayer, o servidor validará o pagamento.',0,0,()=>{});$('dialogReward').style.display='none';const bt=document.createElement('button');bt.textContent='TRABALHAR • 01:30';bt.onclick=()=>{closeDialog();startWork(interior.n,workInfo.salary)};$('dialogActions').prepend(bt);return}
  if(player.y>=(H-110)){interior=null;player.x=interiorReturn.x;player.y=interiorReturn.y;toast('Saíste para a rua.');return}
  toast('Explora o estabelecimento. Usa AÇÃO junto à saída para regressar à rua.');return
 }
