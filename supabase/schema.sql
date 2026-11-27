@@ -77,6 +77,7 @@ create table if not exists public.work_shifts (
  )
 );
 create index if not exists work_shifts_player_started_idx on public.work_shifts(player_id,started_at desc);
+create unique index if not exists one_active_shift_per_player_uidx on public.work_shifts(player_id) where status = 'active';
 
 create table if not exists public.player_assets (
  id uuid primary key default gen_random_uuid(),
