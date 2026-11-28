@@ -313,14 +313,40 @@ function init3D(){
      for(let k=0;k<Math.min(9,Math.floor(b.w/22));k++){const post=new T.Mesh(new T.BoxGeometry(2,8,2),mat(0xeee1c8));post.position.set(-b.w/2+12+k*(b.w-24)/Math.max(1,Math.min(9,Math.floor(b.w/22))-1),15+row*floorH,b.h/2+13);g.add(post)}
     }
    }
+   /* Detalhes urbanos angolanos: ar condicionado, tubos e depósitos de água */
+   if(['homes','apartments','yellow','office','luxury'].includes(b.type)){
+    for(let ac=0;ac<Math.min(3,cols);ac++){
+     const ax=-b.w/2+30+ac*(b.w-60)/Math.max(1,Math.min(3,cols)-1),ay=23+(ac%2)*floorH;
+     const unit=new T.Mesh(new T.BoxGeometry(13,10,8),mat(0xd5d2c8,.78));unit.position.set(ax,ay,b.h/2+5);unit.castShadow=true;g.add(unit);
+     const grille=new T.Mesh(new T.BoxGeometry(8,5,1),mat(0x59636a));grille.position.set(ax,ay,b.h/2+9.2);g.add(grille);
+    }
+   }
+   if(['homes','farm','market','cantina','workshop'].includes(b.type)){
+    const pipe=new T.Mesh(new T.CylinderGeometry(1.1,1.1,h-8,7),mat(0x77766d,.9));pipe.position.set(b.w/2-9,h/2,b.h/2+2);g.add(pipe);
+   }
+   if(['homes','apartments','yellow'].includes(b.type)){
+    const tank=new T.Mesh(new T.CylinderGeometry(12,12,18,12),mat(0x176eaa,.42));tank.position.set(b.w*.27,h+15,-b.h*.22);tank.castShadow=true;g.add(tank);
+    const lid=new T.Mesh(new T.CylinderGeometry(12,12,2,12),mat(0x8bc6df,.38));lid.position.set(b.w*.27,h+25,-b.h*.22);g.add(lid);
+    const base=new T.Mesh(new T.BoxGeometry(30,4,30),mat(0x77766d));base.position.set(b.w*.27,h+4,-b.h*.22);g.add(base);
+   }
    const door=new T.Mesh(new T.BoxGeometry(19,30,3),doorMat);door.position.set(0,16,frontZ+1);g.add(door);
    const sign=new T.Mesh(new T.PlaneGeometry(Math.min(b.w-10,230),isYellow?22:18),new T.MeshBasicMaterial({map:signTexture(isYellow?'PRÉDIO AMARELO':b.n)}));sign.position.set(0,h+13,b.h/2+2);g.add(sign);
    if(isYellow){const band=new T.Mesh(new T.BoxGeometry(b.w+2,5,b.h+2),mat(0xffd34e));band.position.y=h-4;g.add(band);const canopy=new T.Mesh(new T.BoxGeometry(b.w*.72,4,18),mat(0x9c6d2b));canopy.position.set(0,34,b.h/2+10);g.add(canopy)}
    else if(['workshop','garage'].includes(b.type)){const awning=new T.Mesh(new T.BoxGeometry(b.w*.72,5,18),mat(0x354b40));awning.position.set(0,39,b.h/2+9);g.add(awning)}
    g.position.set(b.x+b.w/2,0,b.y+b.h/2);scene3D.add(g);b._threeGroup=g;
   });
-  const treeMat=mat(0x28613a),trunkMat=pbr('plaster',0x65452e,.98,2);
-  trees.forEach(t=>{const g=new T.Group(),tr=new T.Mesh(new T.CylinderGeometry(3,5,26,7),trunkMat);tr.position.y=13;tr.castShadow=true;g.add(tr);for(let i=0;i<3;i++){const crown=new T.Mesh(new T.SphereGeometry(13-i*1.5,8,7),treeMat);crown.position.set((i-1)*8,31+(i%2)*5,0);crown.castShadow=true;g.add(crown)}g.position.set(t.x,0,t.y);scene3D.add(g)});
+  const treeMats=[0x315f36,0x426d3c,0x557b43,0x285536].map(c=>new T.MeshStandardMaterial({color:c,roughness:1}));
+  const trunkMat=pbr('plaster',0x65452e,.98,2);
+  trees.forEach((t,idx)=>{
+   const g=new T.Group(),height=22+(idx%4)*4,tr=new T.Mesh(new T.CylinderGeometry(2.5,5,height,8),trunkMat);tr.position.y=height/2;tr.castShadow=true;g.add(tr);
+   const count=5+(idx%3);
+   for(let i=0;i<count;i++){
+    const radius=9+(i%3)*2,crown=new T.Mesh(new T.IcosahedronGeometry(radius,1),treeMats[(idx+i)%treeMats.length]);
+    crown.position.set(Math.sin(i*2.4)*8,height+Math.cos(i*1.8)*7+(i%2)*3,Math.cos(i*2.4)*8);
+    crown.scale.set(1+(i%2)*.16,.85+(i%3)*.12,1+(i%2)*.1);crown.castShadow=true;g.add(crown);
+   }
+   g.position.set(t.x,0,t.y);scene3D.add(g);
+  });
   /* Elementos urbanos de Luanda */
   const streetBox=(g,c,w,h,d,x,y,z)=>{const m=new T.Mesh(new T.BoxGeometry(w,h,d),mat(c,.82));m.position.set(x,y,z);m.castShadow=true;g.add(m);return m};
   const hiace=(x,z)=>{const g=new T.Group();streetBox(g,0xf0eee5,58,25,30,0,18,0);streetBox(g,0x1769a5,60,12,31,0,8,0);streetBox(g,0x1769a5,40,22,28,-3,39,0);streetBox(g,0x8dc4d4,3,15,24,18,40,0);[-20,20].forEach(wx=>[-18,18].forEach(wz=>{const w=new T.Mesh(new T.CylinderGeometry(7,7,5,12),mat(0x171717));w.rotation.z=Math.PI/2;w.position.set(wx,8,wz);g.add(w)}));g.position.set(x,0,z);scene3D.add(g)};
