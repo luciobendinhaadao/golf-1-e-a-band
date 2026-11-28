@@ -259,14 +259,16 @@ function init3D(){
   const sun=new T.DirectionalLight(0xffe2b2,2.65);sun.position.set(-350,650,250);sun.castShadow=true;sun.shadow.mapSize.set(1536,1536);sun.shadow.camera.left=-650;sun.shadow.camera.right=650;sun.shadow.camera.top=650;sun.shadow.camera.bottom=-650;scene3D.add(sun);
   const mat=(color,roughness=.9)=>new T.MeshStandardMaterial({color,roughness});
   /* Materiais PBR foto-digitalizados: Poly Haven (CC0). O jogo carrega mapas 1K e mantém fallback se a rede falhar. */
-  const pbrMaterials={asphalt:[],concrete:[],plaster:[],soil:[]};
+  const pbrMaterials={asphalt:[],concrete:[],plaster:[],soil:[],roof:[]};
   const pbr=(kind,color,roughness=.9,tiles=3)=>{const m=mat(color,roughness);m.userData.pbrTiles=tiles;(pbrMaterials[kind]||(pbrMaterials[kind]=[])).push(m);return m};
   /* Mapas fotográficos CC0 Poly Haven: diffuse + normal + roughness em 1K.
      URLs directas evitam depender da API em cada arranque e permitem cache do navegador. */
   const pbrAssets={
    asphalt:{color:'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/asphalt_01/asphalt_01_diffuse_1k.jpg',normal:'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/asphalt_01/asphalt_01_nor_gl_1k.jpg',rough:'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/asphalt_01/asphalt_01_rough_1k.jpg'},
    concrete:{color:'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/concrete_wall_008/concrete_wall_008_diffuse_1k.jpg',normal:'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/concrete_wall_008/concrete_wall_008_nor_gl_1k.jpg',rough:'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/concrete_wall_008/concrete_wall_008_rough_1k.jpg'},
-   plaster:{color:'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_stucco/white_stucco_diffuse_1k.jpg',normal:'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_stucco/white_stucco_nor_gl_1k.jpg',rough:'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_stucco/white_stucco_rough_1k.jpg'}
+   plaster:{color:'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_stucco/white_stucco_diffuse_1k.jpg',normal:'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_stucco/white_stucco_nor_gl_1k.jpg',rough:'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_stucco/white_stucco_rough_1k.jpg'},
+   soil:{color:'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/red_laterite_soil_stones/red_laterite_soil_stones_diffuse_1k.jpg',normal:'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/red_laterite_soil_stones/red_laterite_soil_stones_nor_gl_1k.jpg',rough:'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/red_laterite_soil_stones/red_laterite_soil_stones_rough_1k.jpg'},
+   roof:{color:'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/corrugated_iron_03/corrugated_iron_03_diffuse_1k.jpg',normal:'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/corrugated_iron_03/corrugated_iron_03_nor_gl_1k.jpg',rough:'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/corrugated_iron_03/corrugated_iron_03_rough_1k.jpg'}
   };
   const loadPbrAsset=(kind)=>{const asset=pbrAssets[kind];if(!asset)return;const loader=new T.TextureLoader();loader.setCrossOrigin('anonymous');
    const load=(url,isColor)=>new Promise(resolve=>loader.load(url,t=>{t.wrapS=t.wrapT=T.RepeatWrapping;t.anisotropy=Math.min(4,renderer3D.capabilities.getMaxAnisotropy());if(isColor)t.colorSpace=T.SRGBColorSpace;resolve(t)},undefined,err=>{console.warn('Mapa PBR indisponível:',url,err);resolve(null)}));
@@ -293,7 +295,8 @@ function init3D(){
    const wallColor=buildingMats[b.type]||0x9b927e,wallMat=pbr(isTall?'concrete':'plaster',wallColor,.91,Math.max(2,Math.round(b.w/90))),trim=pbr('concrete',isYellow?0xf2d36c:0xe4d7bd,.82,2);
    const base=new T.Mesh(new T.BoxGeometry(b.w,h,b.h),wallMat);base.position.y=h/2;base.castShadow=true;base.receiveShadow=true;g.add(base);
    const plinth=new T.Mesh(new T.BoxGeometry(b.w+5,5,b.h+5),mat(0x66594b));plinth.position.y=3;g.add(plinth);
-   const roof=new T.Mesh(new T.BoxGeometry(b.w+8,5,b.h+8),mat(isYellow?0xb98225:0x514b43));roof.position.y=h+2.5;roof.castShadow=true;g.add(roof);
+   const roofMaterial=b.type==='homes'||b.type==='farm'?pbr('roof',isYellow?0xb98225:0x514b43,.88,Math.max(2,Math.round(b.w/110))):pbr('concrete',isYellow?0xb98225:0x514b43,.9,2);
+   const roof=new T.Mesh(new T.BoxGeometry(b.w+8,5,b.h+8),roofMaterial);roof.position.y=h+2.5;roof.castShadow=true;g.add(roof);
    const frontZ=b.h/2+1.1,cols=Math.max(2,Math.min(6,Math.floor(b.w/43)));
    for(let row=0;row<floors;row++){
     const y=13+row*floorH+floorH*.48;
@@ -355,7 +358,7 @@ function init3D(){
   for(let i=0;i<3;i++)for(let j=0;j<6;j++){const plot=new T.Mesh(new T.BoxGeometry(115,2,90),mat(0x694d32));plot.position.set(207+j*155,1,1965+i*165);scene3D.add(plot)}
   
   /* Carregamento assíncrono de materiais foto-digitalizados 1K, sem bloquear a entrada no jogo. */
-  loadPbrAsset('asphalt');loadPbrAsset('concrete');loadPbrAsset('plaster');
+  loadPbrAsset('asphalt');loadPbrAsset('concrete');loadPbrAsset('plaster');loadPbrAsset('soil');loadPbrAsset('roof');
   player3D=makeHumanoid3D('#285d3c',true);scene3D.add(player3D);
   car3D=new T.Group();
   const carPaint=mat(0x17669a,.32),rubber=mat(0x111416),chrome=mat(0xbfc7c8,.3),glass=mat(0x8fc4d1,.18),lampMat=new T.MeshStandardMaterial({color:0xfff1c4,emissive:0xffd77a,emissiveIntensity:.5});
