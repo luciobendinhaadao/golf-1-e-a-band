@@ -235,7 +235,7 @@ $('tabCreate').onclick=()=>authTab('create');$('tabLogin').onclick=()=>authTab('
 async function passDigest(value){const data=new TextEncoder().encode(value);const hash=await crypto.subtle.digest('SHA-256',data);return Array.from(new Uint8Array(hash)).map(v=>v.toString(16).padStart(2,'0')).join('')}
 let startupLoaderTimer=null,startupLoaderAt=0;
 function showStartupLoader(name='BENDINHA',subtitle='A preparar a tua entrada na Banda'){const l=$('startupLoader');if(!l)return;clearTimeout(startupLoaderTimer);startupLoaderAt=performance.now();$('loaderName').textContent=(name||'BENDINHA').toUpperCase();$('loaderSubtitle').textContent=subtitle;$('loaderStatus').textContent=threeReady?'A FINALIZAR A ENTRADA NO MUNDO 3D':'A CARREGAR O MUNDO 3D • LUANDA';l.classList.remove('done','failed');}
-function finishStartupLoader(){if(!threeReady)return;const elapsed=performance.now()-startupLoaderAt;startupLoaderTimer=setTimeout(()=>{$('startupLoader').classList.add('done')},Math.max(0,1250-elapsed));}
+function finishStartupLoader(){if(!threeReady)return;clearTimeout(startupLoaderTimer);const l=$('startupLoader');if(l)l.classList.add('done');}
 function startupLoadFailed(){const l=$('startupLoader');if(!l)return;l.classList.add('failed');$('loaderStatus').textContent='FALHA AO INICIAR O MOTOR 3D';}
 function enterGame(profile){showStartupLoader(profile.name||'BENDINHA','A preparar o teu mundo • Golf 1');if(threeReady)finishStartupLoader();avatar={...avatar,...profile.avatar};$('auth').classList.add('hidden');$('profileChip').textContent='👤 '+profile.name;$('profileChip').classList.add('show');player.x=1190;player.y=940;camera.x=Math.max(0,player.x-W/2);camera.y=Math.max(0,player.y-H/2);updateHUD();toast('Bem-vindo à Banda, '+profile.name+'!')}
 $('createAccount').onclick=async()=>{const name=$('regName').value.trim(),email=$('regEmail').value.trim().toLowerCase(),pass=$('regPass').value;if(name.length<2||!email.includes('@')||pass.length<6){$('authMessage').textContent='Preenche o nome, um e-mail válido e uma palavra-passe com 6 caracteres.';return}try{const key='golf1_account_'+email;if(localStorage.getItem(key)){$('authMessage').textContent='Já existe uma conta com este e-mail neste dispositivo. Inicia sessão.';return}const profile={name,email,passwordHash:await passDigest(pass),avatar:{name,gender:$('regGender').value,skin:$('regSkin').value,hair:$('regHair').value,outfit:$('regOutfit').value}};localStorage.setItem(key,JSON.stringify(profile));localStorage.setItem('golf1_current_account',email);enterGame(profile)}catch(e){$('authMessage').textContent='Não foi possível criar a conta neste navegador. Tenta novamente.'}};
@@ -250,13 +250,13 @@ function init3D(){
  if(!window.THREE)return false;
  try{
   const T=window.THREE,el=document.createElement('canvas');el.id='world3d';document.body.insertBefore(el,document.body.firstChild);
-  renderer3D=new T.WebGLRenderer({canvas:el,antialias:true,powerPreference:'high-performance',alpha:false});
-  renderer3D.setPixelRatio(Math.min(devicePixelRatio||1,1.25));renderer3D.setSize(innerWidth,innerHeight);renderer3D.shadowMap.enabled=true;renderer3D.shadowMap.type=T.PCFSoftShadowMap;
+  const lowPowerMobile=matchMedia('(max-width: 700px)').matches||/iPhone|iPad|iPod/i.test(navigator.userAgent);renderer3D=new T.WebGLRenderer({canvas:el,antialias:!lowPowerMobile,powerPreference:'high-performance',alpha:false});
+  renderer3D.setPixelRatio(Math.min(devicePixelRatio||1,lowPowerMobile?0.85:1.15));renderer3D.setSize(innerWidth,innerHeight);renderer3D.shadowMap.enabled=!lowPowerMobile;if(!lowPowerMobile)renderer3D.shadowMap.type=T.PCFSoftShadowMap;
   renderer3D.outputColorSpace=T.SRGBColorSpace;renderer3D.toneMapping=T.ACESFilmicToneMapping;renderer3D.toneMappingExposure=1.05;
   scene3D=new T.Scene();scene3D.background=new T.Color(0x9fc4d8);scene3D.fog=new T.Fog(0x9fc4d8,650,4200);
   camera3D=new T.PerspectiveCamera(48,innerWidth/innerHeight,.1,18000);
   scene3D.add(new T.HemisphereLight(0xe8f4ff,0x596348,1.45));
-  const sun=new T.DirectionalLight(0xffe2b2,2.65);sun.position.set(-350,650,250);sun.castShadow=true;sun.shadow.mapSize.set(1536,1536);sun.shadow.camera.left=-650;sun.shadow.camera.right=650;sun.shadow.camera.top=650;sun.shadow.camera.bottom=-650;scene3D.add(sun);
+  const sun=new T.DirectionalLight(0xffe2b2,2.65);sun.position.set(-350,650,250);sun.castShadow=true;sun.shadow.mapSize.set(768,768);sun.shadow.camera.left=-650;sun.shadow.camera.right=650;sun.shadow.camera.top=650;sun.shadow.camera.bottom=-650;scene3D.add(sun);
   const mat=(color,roughness=.9)=>new T.MeshStandardMaterial({color,roughness});
   /* Materiais PBR foto-digitalizados: Poly Haven (CC0). O jogo carrega mapas 1K e mantém fallback se a rede falhar. */
   const pbrMaterials={asphalt:[],concrete:[],plaster:[],soil:[],roof:[]};
@@ -562,7 +562,7 @@ function render3D(){
   player3D.userData.arms.forEach((a,i)=>{const v=(i===0?-1:1)*swing;a.pivot.rotation.x=v;a.elbow.rotation.x=-.12+Math.max(0,v)*.32});
   player3D.userData.torso.position.y=25+breath;player3D.userData.torso.rotation.z=moving?Math.sin(walkPhase)*.035:0;
  }
- if(!interior)scene3D.traverse(o=>{if(o.userData&&o.userData.isPlayer===false&&o.userData.legs){const ph=threeClock*3.4+o.userData.breath,w=Math.sin(ph)*.22;o.userData.legs.forEach((l,i)=>{l.hip.rotation.x=(i===0?1:-1)*w;l.shin.rotation.x=Math.max(0,-w)*.5});o.userData.arms.forEach((a,i)=>a.pivot.rotation.x=(i===0?-1:1)*w*.7)}});
+  /* NPCs estáticos no modo móvel para evitar varrer toda a cena a cada frame. */
  threeClock+=.016;car3D.position.set(car.x,0,car.y);car3D.rotation.y=-car.angle+Math.PI/2;car3D.visible=!interior;
  if(car3D.userData.wheels)car3D.userData.wheels.forEach(w=>w.rotation.x+=car.speed*.0018);
  if(!interior){if(gameMinutes<360||gameMinutes>1080){scene3D.background.set(0x25364d);scene3D.fog.color.set(0x25364d)}else{scene3D.background.set(0x9fc4d8);scene3D.fog.color.set(0x9fc4d8)}}else{scene3D.background.set(0x29332f);scene3D.fog.color.set(0x29332f)}
