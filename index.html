@@ -253,7 +253,7 @@ function init3D(){
   const T=window.THREE,el=document.createElement('canvas');el.id='world3d';document.body.insertBefore(el,document.body.firstChild);
   const lowPowerMobile=matchMedia('(max-width: 700px)').matches||/iPhone|iPad|iPod/i.test(navigator.userAgent);renderer3D=new T.WebGLRenderer({canvas:el,antialias:!lowPowerMobile,powerPreference:'high-performance',alpha:false});
   renderer3D.setPixelRatio(Math.min(devicePixelRatio||1,lowPowerMobile?0.95:1.25));renderer3D.setSize(innerWidth,innerHeight);renderer3D.shadowMap.enabled=true;renderer3D.shadowMap.type=T.PCFSoftShadowMap;
-  renderer3D.outputColorSpace=T.SRGBColorSpace;renderer3D.toneMapping=T.ACESFilmicToneMapping;renderer3D.toneMappingExposure=1.05;
+  renderer3D.outputEncoding=T.sRGBEncoding;renderer3D.toneMapping=T.ACESFilmicToneMapping;renderer3D.toneMappingExposure=1.05;
   scene3D=new T.Scene();scene3D.background=new T.Color(0x9fc4d8);scene3D.fog=new T.Fog(0x9fc4d8,650,4200);
   camera3D=new T.PerspectiveCamera(48,innerWidth/innerHeight,.1,18000);
   scene3D.add(new T.HemisphereLight(0xe8f4ff,0x596348,1.45));
@@ -272,7 +272,7 @@ function init3D(){
    roof:{color:'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/corrugated_iron_03/corrugated_iron_03_diffuse_1k.jpg',normal:'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/corrugated_iron_03/corrugated_iron_03_nor_gl_1k.jpg',rough:'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/corrugated_iron_03/corrugated_iron_03_rough_1k.jpg'}
   };
   const loadPbrAsset=(kind)=>{const asset=pbrAssets[kind];if(!asset)return;const loader=new T.TextureLoader();loader.setCrossOrigin('anonymous');
-   const load=(url,isColor)=>new Promise(resolve=>loader.load(url,t=>{t.wrapS=t.wrapT=T.RepeatWrapping;t.anisotropy=Math.min(4,renderer3D.capabilities.getMaxAnisotropy());if(isColor)t.colorSpace=T.SRGBColorSpace;resolve(t)},undefined,err=>{console.warn('Mapa PBR indisponível:',url,err);resolve(null)}));
+   const load=(url,isColor)=>new Promise(resolve=>loader.load(url,t=>{t.wrapS=t.wrapT=T.RepeatWrapping;t.anisotropy=Math.min(4,renderer3D.capabilities.getMaxAnisotropy());if(isColor)t.encoding=T.sRGBEncoding;resolve(t)},undefined,err=>{console.warn('Mapa PBR indisponível:',url,err);resolve(null)}));
    Promise.all([load(asset.color,true),load(asset.normal,false),load(asset.rough,false)]).then(([colorMap,normalMap,roughMap])=>{
     if(!colorMap)return;
     (pbrMaterials[kind]||[]).forEach(m=>{const tile=m.userData.pbrTiles||3;const apply=t=>{if(!t)return null;const c=t.clone();c.needsUpdate=true;c.repeat.set(tile,tile);return c};m.map=apply(colorMap);m.normalMap=apply(normalMap);m.roughnessMap=apply(roughMap);m.normalScale.set(.7,.7);m.needsUpdate=true});
@@ -594,9 +594,9 @@ function bootThree(){
  if(threeBootStarted)return false;
  threeBootStarted=true;
  const sources=[
-  'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js',
-  'https://unpkg.com/three@0.160.0/build/three.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js'
+  'https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js',
+  'https://unpkg.com/three@0.149.0/build/three.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.149.0/three.min.js'
  ];
  const load=(index)=>{
   if(index>=sources.length){threeBootStarted=false;console.error('Não foi possível carregar o motor 3D após testar os servidores.');startupLoadFailed();return}
