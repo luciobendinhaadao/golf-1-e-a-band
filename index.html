@@ -251,15 +251,31 @@ function init3D(){
  try{
   const T=window.THREE,el=document.createElement('canvas');el.id='world3d';document.body.insertBefore(el,document.body.firstChild);
   renderer3D=new T.WebGLRenderer({canvas:el,antialias:true,powerPreference:'high-performance',alpha:false});
-  renderer3D.setPixelRatio(Math.min(devicePixelRatio||1,1.5));renderer3D.setSize(innerWidth,innerHeight);renderer3D.shadowMap.enabled=true;renderer3D.shadowMap.type=T.PCFSoftShadowMap;
+  renderer3D.setPixelRatio(Math.min(devicePixelRatio||1,1.25));renderer3D.setSize(innerWidth,innerHeight);renderer3D.shadowMap.enabled=true;renderer3D.shadowMap.type=T.PCFSoftShadowMap;
   renderer3D.outputColorSpace=T.SRGBColorSpace;renderer3D.toneMapping=T.ACESFilmicToneMapping;renderer3D.toneMappingExposure=1.05;
   scene3D=new T.Scene();scene3D.background=new T.Color(0x9fc4d8);scene3D.fog=new T.Fog(0x9fc4d8,650,4200);
   camera3D=new T.PerspectiveCamera(48,innerWidth/innerHeight,.1,18000);
-  scene3D.add(new T.HemisphereLight(0xe8f4ff,0x596348,2.1));
-  const sun=new T.DirectionalLight(0xffe2b2,2.2);sun.position.set(-350,650,250);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-650;sun.shadow.camera.right=650;sun.shadow.camera.top=650;sun.shadow.camera.bottom=-650;scene3D.add(sun);
+  scene3D.add(new T.HemisphereLight(0xe8f4ff,0x596348,1.45));
+  const sun=new T.DirectionalLight(0xffe2b2,2.65);sun.position.set(-350,650,250);sun.castShadow=true;sun.shadow.mapSize.set(1536,1536);sun.shadow.camera.left=-650;sun.shadow.camera.right=650;sun.shadow.camera.top=650;sun.shadow.camera.bottom=-650;scene3D.add(sun);
   const mat=(color,roughness=.9)=>new T.MeshStandardMaterial({color,roughness});
-  const ground=new T.Mesh(new T.PlaneGeometry(world.w,world.h),mat(0x9a9a78));ground.rotation.x=-Math.PI/2;ground.position.set(world.w/2,-1,world.h/2);ground.receiveShadow=true;scene3D.add(ground);
-  const roadMat=mat(0x343b3c),curbMat=mat(0xb9b5a6),lineMat=mat(0xe6d9a8),sidewalkMat=mat(0xb9b09c);
+  /* Materiais PBR foto-digitalizados: Poly Haven (CC0). O jogo carrega mapas 1K e mantém fallback se a rede falhar. */
+  const pbrMaterials={asphalt:[],concrete:[],plaster:[],soil:[]};
+  const pbr=(kind,color,roughness=.9,tiles=3)=>{const m=mat(color,roughness);m.userData.pbrTiles=tiles;(pbrMaterials[kind]||(pbrMaterials[kind]=[])).push(m);return m};
+  const findPbrMap=(root,pattern)=>{let found=null;const visit=(o,path='')=>{if(!o||typeof o!=='object'||found)return;if(typeof o.url==='string'&&pattern.test(path))found=o.url;else Object.entries(o).forEach(([k,v])=>visit(v,path+'/'+k))};visit(root);return found};
+  const loadPbrAsset=async(id,kind)=>{try{
+   const response=await fetch('https://api.polyhaven.com/files/'+id,{mode:'cors',cache:'force-cache'});if(!response.ok)throw new Error('PBR API '+response.status);
+   const files=await response.json(),maps=files['1k']||files['1K']||files;
+   const urls={color:findPbrMap(maps,/diffuse|diff/i),normal:findPbrMap(maps,/nor_gl|normal/i),rough:findPbrMap(maps,/rough/i)};
+   const loader=new T.TextureLoader();loader.setCrossOrigin('anonymous');
+   const load=(url,space)=>new Promise(resolve=>{if(!url)return resolve(null);loader.load(url,t=>{t.wrapS=t.wrapT=T.RepeatWrapping;t.repeat.set(3,3);t.anisotropy=Math.min(4,renderer3D.capabilities.getMaxAnisotropy());if(space)t.colorSpace=T.SRGBColorSpace;resolve(t)},undefined,()=>resolve(null))});
+   const [colorMap,normalMap,roughMap]=await Promise.all([load(urls.color,true),load(urls.normal,false),load(urls.rough,false)]);
+   if(!colorMap)throw new Error('Mapa de cor indisponível: '+id);
+   (pbrMaterials[kind]||[]).forEach(m=>{const tile=m.userData.pbrTiles||3;const apply=t=>{if(!t)return t;const c=t.clone();c.needsUpdate=true;c.repeat.set(tile,tile);return c};m.map=apply(colorMap);m.normalMap=apply(normalMap);m.roughnessMap=apply(roughMap);m.normalScale.set(.65,.65);m.needsUpdate=true});
+   console.info('Material PBR carregado:',id);
+  }catch(err){console.warn('Material PBR indisponível; mantém material de reserva:',id,err)}};
+  const groundMaterial=pbr('soil',0x9a9a78,.98,5);
+  const ground=new T.Mesh(new T.PlaneGeometry(world.w,world.h),groundMaterial);ground.rotation.x=-Math.PI/2;ground.position.set(world.w/2,-1,world.h/2);ground.receiveShadow=true;scene3D.add(ground);
+  const roadMat=pbr('asphalt',0x343b3c,.96,7),curbMat=pbr('concrete',0xb9b5a6,.92,3),lineMat=mat(0xe6d9a8),sidewalkMat=pbr('concrete',0xb9b09c,.94,4);
   roads.forEach(r=>{const road=new T.Mesh(new T.BoxGeometry(r.w,.5,r.h),roadMat);road.position.set(r.x+r.w/2,.1,r.y+r.h/2);road.receiveShadow=true;scene3D.add(road);
    const horizontal=r.w>r.h;
    if(horizontal){[-1,1].forEach(side=>{const c=new T.Mesh(new T.BoxGeometry(r.w,1,8),curbMat);c.position.set(r.x+r.w/2,.4,r.y+r.h/2+side*(r.h/2+5));scene3D.add(c)});for(let x=r.x+35;x<r.x+r.w-20;x+=65){const d=new T.Mesh(new T.BoxGeometry(28,.25,2),lineMat);d.position.set(x,.42,r.y+r.h/2);scene3D.add(d)}}
@@ -271,7 +287,7 @@ function init3D(){
   buildings.forEach((b,idx)=>{
    const g=new T.Group(),isYellow=b.type==='yellow',isTall=isYellow||b.type==='apartments'||b.type==='financeoffice';
    const floors=isYellow?5:(isTall?3:1),floorH=isYellow?27:(isTall?25:48),h=floors*floorH+8;
-   const wallColor=buildingMats[b.type]||0x9b927e,wallMat=mat(wallColor),trim=mat(isYellow?0xf2d36c:0xe4d7bd);
+   const wallColor=buildingMats[b.type]||0x9b927e,wallMat=pbr(isTall?'concrete':'plaster',wallColor,.91,Math.max(2,Math.round(b.w/90))),trim=pbr('concrete',isYellow?0xf2d36c:0xe4d7bd,.82,2);
    const base=new T.Mesh(new T.BoxGeometry(b.w,h,b.h),wallMat);base.position.y=h/2;base.castShadow=true;base.receiveShadow=true;g.add(base);
    const plinth=new T.Mesh(new T.BoxGeometry(b.w+5,5,b.h+5),mat(0x66594b));plinth.position.y=3;g.add(plinth);
    const roof=new T.Mesh(new T.BoxGeometry(b.w+8,5,b.h+8),mat(isYellow?0xb98225:0x514b43));roof.position.y=h+2.5;roof.castShadow=true;g.add(roof);
@@ -297,7 +313,7 @@ function init3D(){
    else if(['workshop','garage'].includes(b.type)){const awning=new T.Mesh(new T.BoxGeometry(b.w*.72,5,18),mat(0x354b40));awning.position.set(0,39,b.h/2+9);g.add(awning)}
    g.position.set(b.x+b.w/2,0,b.y+b.h/2);scene3D.add(g);b._threeGroup=g;
   });
-  const treeMat=mat(0x28613a),trunkMat=mat(0x65452e);
+  const treeMat=mat(0x28613a),trunkMat=pbr('plaster',0x65452e,.98,2);
   trees.forEach(t=>{const g=new T.Group(),tr=new T.Mesh(new T.CylinderGeometry(3,5,26,7),trunkMat);tr.position.y=13;tr.castShadow=true;g.add(tr);for(let i=0;i<3;i++){const crown=new T.Mesh(new T.SphereGeometry(13-i*1.5,8,7),treeMat);crown.position.set((i-1)*8,31+(i%2)*5,0);crown.castShadow=true;g.add(crown)}g.position.set(t.x,0,t.y);scene3D.add(g)});
   /* Elementos urbanos de Luanda */
   const streetBox=(g,c,w,h,d,x,y,z)=>{const m=new T.Mesh(new T.BoxGeometry(w,h,d),mat(c,.82));m.position.set(x,y,z);m.castShadow=true;g.add(m);return m};
@@ -332,9 +348,11 @@ function init3D(){
   mural.position.set(2280,0,1120);scene3D.add(mural);
   const angolaMark=new T.Mesh(new T.PlaneGeometry(88,18),new T.MeshBasicMaterial({map:signTexture('ANGOLA • NOSSA TERRA'),transparent:true}));angolaMark.position.set(2280,34,1122);scene3D.add(angolaMark);
   const pump=new T.Group();streetBox(pump,0xe9e7df,72,28,54,0,14,0);streetBox(pump,0xc5222c,76,5,58,0,30,0);streetBox(pump,0xe7e4d8,18,32,15,-12,17,0);streetBox(pump,0x263b4c,9,20,3,-12,17,9);pump.position.set(2050,0,390);scene3D.add(pump);
-  const farmGround=new T.Mesh(new T.BoxGeometry(1100,1,650),mat(0x98794c));farmGround.position.set(630,0,2175);scene3D.add(farmGround);
+  const farmGround=new T.Mesh(new T.BoxGeometry(1100,1,650),pbr('soil',0x98794c,.98,6));farmGround.position.set(630,0,2175);scene3D.add(farmGround);
   for(let i=0;i<3;i++)for(let j=0;j<6;j++){const plot=new T.Mesh(new T.BoxGeometry(115,2,90),mat(0x694d32));plot.position.set(207+j*155,1,1965+i*165);scene3D.add(plot)}
   
+  /* Carregamento assíncrono de materiais foto-digitalizados 1K, sem bloquear a entrada no jogo. */
+  loadPbrAsset('asphalt_02','asphalt');loadPbrAsset('concrete_wall_008','concrete');loadPbrAsset('white_stucco','plaster');
   player3D=makeHumanoid3D('#285d3c',true);scene3D.add(player3D);
   car3D=new T.Group();
   const carPaint=mat(0x17669a,.32),rubber=mat(0x111416),chrome=mat(0xbfc7c8,.3),glass=mat(0x8fc4d1,.18),lampMat=new T.MeshStandardMaterial({color:0xfff1c4,emissive:0xffd77a,emissiveIntensity:.5});
