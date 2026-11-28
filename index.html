@@ -261,18 +261,21 @@ function init3D(){
   /* Materiais PBR foto-digitalizados: Poly Haven (CC0). O jogo carrega mapas 1K e mantém fallback se a rede falhar. */
   const pbrMaterials={asphalt:[],concrete:[],plaster:[],soil:[]};
   const pbr=(kind,color,roughness=.9,tiles=3)=>{const m=mat(color,roughness);m.userData.pbrTiles=tiles;(pbrMaterials[kind]||(pbrMaterials[kind]=[])).push(m);return m};
-  const findPbrMap=(root,pattern)=>{let found=null;const visit=(o,path='')=>{if(!o||typeof o!=='object'||found)return;if(typeof o.url==='string'&&pattern.test(path))found=o.url;else Object.entries(o).forEach(([k,v])=>visit(v,path+'/'+k))};visit(root);return found};
-  const loadPbrAsset=async(id,kind)=>{try{
-   const response=await fetch('https://api.polyhaven.com/files/'+id,{mode:'cors',cache:'force-cache'});if(!response.ok)throw new Error('PBR API '+response.status);
-   const files=await response.json(),maps=files['1k']||files['1K']||files;
-   const urls={color:findPbrMap(maps,/diffuse|diff/i),normal:findPbrMap(maps,/nor_gl|normal/i),rough:findPbrMap(maps,/rough/i)};
-   const loader=new T.TextureLoader();loader.setCrossOrigin('anonymous');
-   const load=(url,space)=>new Promise(resolve=>{if(!url)return resolve(null);loader.load(url,t=>{t.wrapS=t.wrapT=T.RepeatWrapping;t.repeat.set(3,3);t.anisotropy=Math.min(4,renderer3D.capabilities.getMaxAnisotropy());if(space)t.colorSpace=T.SRGBColorSpace;resolve(t)},undefined,()=>resolve(null))});
-   const [colorMap,normalMap,roughMap]=await Promise.all([load(urls.color,true),load(urls.normal,false),load(urls.rough,false)]);
-   if(!colorMap)throw new Error('Mapa de cor indisponível: '+id);
-   (pbrMaterials[kind]||[]).forEach(m=>{const tile=m.userData.pbrTiles||3;const apply=t=>{if(!t)return t;const c=t.clone();c.needsUpdate=true;c.repeat.set(tile,tile);return c};m.map=apply(colorMap);m.normalMap=apply(normalMap);m.roughnessMap=apply(roughMap);m.normalScale.set(.65,.65);m.needsUpdate=true});
-   console.info('Material PBR carregado:',id);
-  }catch(err){console.warn('Material PBR indisponível; mantém material de reserva:',id,err)}};
+  /* Mapas fotográficos CC0 Poly Haven: diffuse + normal + roughness em 1K.
+     URLs directas evitam depender da API em cada arranque e permitem cache do navegador. */
+  const pbrAssets={
+   asphalt:{color:'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/asphalt_01/asphalt_01_diffuse_1k.jpg',normal:'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/asphalt_01/asphalt_01_nor_gl_1k.jpg',rough:'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/asphalt_01/asphalt_01_rough_1k.jpg'},
+   concrete:{color:'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/concrete_wall_008/concrete_wall_008_diffuse_1k.jpg',normal:'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/concrete_wall_008/concrete_wall_008_nor_gl_1k.jpg',rough:'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/concrete_wall_008/concrete_wall_008_rough_1k.jpg'},
+   plaster:{color:'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_stucco/white_stucco_diffuse_1k.jpg',normal:'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_stucco/white_stucco_nor_gl_1k.jpg',rough:'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/white_stucco/white_stucco_rough_1k.jpg'}
+  };
+  const loadPbrAsset=(kind)=>{const asset=pbrAssets[kind];if(!asset)return;const loader=new T.TextureLoader();loader.setCrossOrigin('anonymous');
+   const load=(url,isColor)=>new Promise(resolve=>loader.load(url,t=>{t.wrapS=t.wrapT=T.RepeatWrapping;t.anisotropy=Math.min(4,renderer3D.capabilities.getMaxAnisotropy());if(isColor)t.colorSpace=T.SRGBColorSpace;resolve(t)},undefined,err=>{console.warn('Mapa PBR indisponível:',url,err);resolve(null)}));
+   Promise.all([load(asset.color,true),load(asset.normal,false),load(asset.rough,false)]).then(([colorMap,normalMap,roughMap])=>{
+    if(!colorMap)return;
+    (pbrMaterials[kind]||[]).forEach(m=>{const tile=m.userData.pbrTiles||3;const apply=t=>{if(!t)return null;const c=t.clone();c.needsUpdate=true;c.repeat.set(tile,tile);return c};m.map=apply(colorMap);m.normalMap=apply(normalMap);m.roughnessMap=apply(roughMap);m.normalScale.set(.7,.7);m.needsUpdate=true});
+    console.info('Textura fotográfica PBR aplicada:',kind);
+   });
+  };
   const groundMaterial=pbr('soil',0x9a9a78,.98,5);
   const ground=new T.Mesh(new T.PlaneGeometry(world.w,world.h),groundMaterial);ground.rotation.x=-Math.PI/2;ground.position.set(world.w/2,-1,world.h/2);ground.receiveShadow=true;scene3D.add(ground);
   const roadMat=pbr('asphalt',0x343b3c,.96,7),curbMat=pbr('concrete',0xb9b5a6,.92,3),lineMat=mat(0xe6d9a8),sidewalkMat=pbr('concrete',0xb9b09c,.94,4);
@@ -352,7 +355,7 @@ function init3D(){
   for(let i=0;i<3;i++)for(let j=0;j<6;j++){const plot=new T.Mesh(new T.BoxGeometry(115,2,90),mat(0x694d32));plot.position.set(207+j*155,1,1965+i*165);scene3D.add(plot)}
   
   /* Carregamento assíncrono de materiais foto-digitalizados 1K, sem bloquear a entrada no jogo. */
-  loadPbrAsset('asphalt_02','asphalt');loadPbrAsset('concrete_wall_008','concrete');loadPbrAsset('white_stucco','plaster');
+  loadPbrAsset('asphalt');loadPbrAsset('concrete');loadPbrAsset('plaster');
   player3D=makeHumanoid3D('#285d3c',true);scene3D.add(player3D);
   car3D=new T.Group();
   const carPaint=mat(0x17669a,.32),rubber=mat(0x111416),chrome=mat(0xbfc7c8,.3),glass=mat(0x8fc4d1,.18),lampMat=new T.MeshStandardMaterial({color:0xfff1c4,emissive:0xffd77a,emissiveIntensity:.5});
