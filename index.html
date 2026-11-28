@@ -570,21 +570,27 @@ function render3D(){
 }
 
 
+let threeBootStarted=false;
 function bootThree(){
- if(window.THREE){init3D();return}
+ if(threeReady)return true;
+ if(window.THREE){init3D();return threeReady}
+ if(threeBootStarted)return false;
+ threeBootStarted=true;
  const sources=[
   'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js',
   'https://unpkg.com/three@0.160.0/build/three.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js'
  ];
  const load=(index)=>{
-  if(index>=sources.length){console.error('Não foi possível carregar o motor 3D.');startupLoadFailed();return}
+  if(index>=sources.length){threeBootStarted=false;console.error('Não foi possível carregar o motor 3D após testar os servidores.');startupLoadFailed();return}
   const script=document.createElement('script');script.src=sources[index];script.async=true;
-  script.onload=()=>{if(window.THREE)init3D();else load(index+1)};
-  script.onerror=()=>load(index+1);
+  let settled=false;
+  const timer=setTimeout(()=>{if(settled)return;settled=true;script.remove();load(index+1)},4500);
+  script.onload=()=>{if(settled)return;settled=true;clearTimeout(timer);if(window.THREE){threeBootStarted=false;init3D()}else load(index+1)};
+  script.onerror=()=>{if(settled)return;settled=true;clearTimeout(timer);load(index+1)};
   document.head.appendChild(script);
  };
- load(0);
+ load(0);return false;
 }
 
 function loop(t){const dt=Math.min((t-last)/1000||0,.04);last=t;
