@@ -252,7 +252,7 @@ function init3D(){
  try{
   const T=window.THREE,el=document.createElement('canvas');el.id='world3d';document.body.insertBefore(el,document.body.firstChild);
   const lowPowerMobile=matchMedia('(max-width: 700px)').matches||/iPhone|iPad|iPod/i.test(navigator.userAgent);renderer3D=new T.WebGLRenderer({canvas:el,antialias:!lowPowerMobile,powerPreference:'high-performance',alpha:false});
-  renderer3D.setPixelRatio(Math.min(devicePixelRatio||1,lowPowerMobile?0.85:1.15));renderer3D.setSize(innerWidth,innerHeight);renderer3D.shadowMap.enabled=!lowPowerMobile;if(!lowPowerMobile)renderer3D.shadowMap.type=T.PCFSoftShadowMap;
+  renderer3D.setPixelRatio(Math.min(devicePixelRatio||1,lowPowerMobile?0.95:1.25));renderer3D.setSize(innerWidth,innerHeight);renderer3D.shadowMap.enabled=true;renderer3D.shadowMap.type=T.PCFSoftShadowMap;
   renderer3D.outputColorSpace=T.SRGBColorSpace;renderer3D.toneMapping=T.ACESFilmicToneMapping;renderer3D.toneMappingExposure=1.05;
   scene3D=new T.Scene();scene3D.background=new T.Color(0x9fc4d8);scene3D.fog=new T.Fog(0x9fc4d8,650,4200);
   camera3D=new T.PerspectiveCamera(48,innerWidth/innerHeight,.1,18000);
@@ -314,6 +314,17 @@ function init3D(){
      for(let k=0;k<Math.min(9,Math.floor(b.w/22));k++){const post=new T.Mesh(new T.BoxGeometry(2,8,2),mat(0xeee1c8));post.position.set(-b.w/2+12+k*(b.w-24)/Math.max(1,Math.min(9,Math.floor(b.w/22))-1),15+row*floorH,b.h/2+13);g.add(post)}
     }
    }
+   /* Fachadas arquitectónicas: pilares, lajes, molduras profundas e vidros com reflexo. */
+   const facadeConcrete=pbr('concrete',0xc8c1b2,.9,2),facadeTrim=mat(isYellow?0xf0c64b:0xd8d0bd,.78),darkRecess=mat(0x26343a,.48);
+   for(let row=0;row<floors;row++){const fy=8+row*floorH,ledge=new T.Mesh(new T.BoxGeometry(b.w+10,3,b.h+10),facadeTrim);ledge.position.y=fy+floorH-2;ledge.castShadow=true;g.add(ledge);
+    [-1,1].forEach(side=>{const pillar=new T.Mesh(new T.BoxGeometry(isTall?5:3,floorH-4,5),facadeConcrete);pillar.position.set(side*(b.w/2-5),fy+floorH/2,b.h/2+1);pillar.castShadow=true;g.add(pillar)});
+    for(let col=0;col<cols;col++){const wx=-b.w/2+Math.max(24,b.w/(cols+1))*(col+1),ww=Math.min(25,b.w/(cols+2)),wy=fy+floorH*.48;
+     const recess=new T.Mesh(new T.BoxGeometry(ww+5,16,2),darkRecess);recess.position.set(wx,wy,b.h/2+2.5);g.add(recess);
+     const frame=new T.Mesh(new T.BoxGeometry(ww+4,17,1.8),facadeTrim);frame.position.set(wx,wy,b.h/2+3.2);g.add(frame);
+     const pane=new T.Mesh(new T.PlaneGeometry(ww,12),new T.MeshStandardMaterial({color:0x83b7c5,metalness:.28,roughness:.2,transparent:true,opacity:.82,side:T.DoubleSide}));pane.position.set(wx,wy,b.h/2+4.2);g.add(pane);
+     const divider=new T.Mesh(new T.BoxGeometry(1,12,1),mat(0x46565a,.55));divider.position.set(wx,wy,b.h/2+4.8);g.add(divider);
+    }
+   }
    /* Detalhes urbanos angolanos: ar condicionado, tubos e depósitos de água */
    if(['homes','apartments','yellow','office','luxury'].includes(b.type)){
     for(let ac=0;ac<Math.min(3,cols);ac++){
@@ -368,7 +379,12 @@ function init3D(){
    const sign=new T.Mesh(new T.PlaneGeometry(58,12),new T.MeshBasicMaterial({map:signTexture(label)}));sign.position.set(0,48,20);g.add(sign);
    g.position.set(x,0,z);scene3D.add(g);
   };
-  zunga(760,560,'ZUNGA • QUITANDA');zunga(1420,880,'GINGUBA • KITABA');zunga(1920,650,'BANANA ASSADA');
+  zunga(760,560,'ZUNGA • QUITANDA');
+  /* Postes, luminárias e cabos aéreos da rede eléctrica de bairro. */
+  const poleMat=mat(0x555b58,.84),wireMat=new T.LineBasicMaterial({color:0x202725,transparent:true,opacity:.78});
+  const polePoints=[[260,300],[680,300],[1110,300],[1530,300],[1980,300],[420,820],[900,820],[1430,820],[1890,820],[350,1370],[850,1370],[1360,1370],[1900,1370]];
+  polePoints.forEach(([x,z],i)=>{const pole=new T.Group(),shaft=new T.Mesh(new T.CylinderGeometry(2.2,3.5,112,8),poleMat);shaft.position.y=56;shaft.castShadow=true;pole.add(shaft);const arm=new T.Mesh(new T.BoxGeometry(28,3,3),poleMat);arm.position.set(10,108,0);pole.add(arm);const lamp=new T.Mesh(new T.BoxGeometry(12,4,7),new T.MeshStandardMaterial({color:0xe8e1c7,emissive:0xffd88a,emissiveIntensity:.12,roughness:.5}));lamp.position.set(22,105,0);pole.add(lamp);pole.position.set(x,0,z);scene3D.add(pole);if(i%2===0&&i+1<polePoints.length){const [nx,nz]=polePoints[i+1],curve=new T.QuadraticBezierCurve3(new T.Vector3(x,111,z),new T.Vector3((x+nx)/2,96,(z+nz)/2),new T.Vector3(nx,111,nz));scene3D.add(new T.Line(new T.BufferGeometry().setFromPoints(curve.getPoints(18)),wireMat))}});
+zunga(1420,880,'GINGUBA • KITABA');zunga(1920,650,'BANANA ASSADA');
   const flagPole=new T.Mesh(new T.CylinderGeometry(1.4,1.8,92,8),mat(0x5c5143));flagPole.position.set(350,46,760);scene3D.add(flagPole);
   const flag=new T.Group();
   streetBox(flag,0xcc252b,42,13,1,0,0,0);streetBox(flag,0x171717,42,13,1,0,-13,0);
